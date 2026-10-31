@@ -25,7 +25,7 @@ export function isTabCommand(value: unknown): value is TabCommand {
     case 'sidebar-width': return typeof cmd.width === 'number' && Number.isInteger(cmd.width) && cmd.width >= 200 && cmd.width <= 400
     case 'find-query': return text(cmd.value, 1000)
     case 'find-step': return typeof cmd.forward === 'boolean'
-    case 'app-menu': return typeof cmd.x === 'number' && Number.isInteger(cmd.x) && cmd.x >= 0 && cmd.x <= 100000 && typeof cmd.y === 'number' && Number.isInteger(cmd.y) && cmd.y >= 0 && cmd.y <= 100000
+    case 'app-menu': case 'settings-menu': return typeof cmd.x === 'number' && Number.isInteger(cmd.x) && cmd.x >= 0 && cmd.x <= 100000 && typeof cmd.y === 'number' && Number.isInteger(cmd.y) && cmd.y >= 0 && cmd.y <= 100000
     case 'navigate': return text(cmd.value, 8192)
     case 'history-open': return text(cmd.url, 8192) && id(cmd.workspaceId)
     case 'search-later-open': return id(cmd.id) && id(cmd.workspaceId)

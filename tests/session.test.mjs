@@ -136,7 +136,7 @@ test('session dedup ignores transient UI metadata but detects persisted changes'
 })
 
 test('migrates the old session and restores separate workspaces after reopening', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-session-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-session-'))
   try {
     const path = join(dir, 'session.sqlite')
     const old = new DatabaseSync(path)
@@ -170,7 +170,7 @@ test('migrates the old session and restores separate workspaces after reopening'
 })
 
 test('Later save and tab removal commit together and survive reopening', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-later-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-later-'))
   try {
     const path = join(dir, 'session.sqlite')
     let store = new SessionStore(path)
@@ -195,7 +195,7 @@ test('Later save and tab removal commit together and survive reopening', () => {
 })
 
 test('favourites persist by scope, reorder and participate in saved-page search', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-favourites-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-favourites-'))
   try {
     const path = join(dir, 'session.sqlite'); let store = new SessionStore(path)
     store.createWorkspace('work', 'Work')
@@ -216,7 +216,7 @@ test('favourites persist by scope, reorder and participate in saved-page search'
 })
 
 test('history persists by Workspace and ignores unsafe URLs', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-history-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-history-'))
   try {
     const path = join(dir, 'session.sqlite'); let store = new SessionStore(path)
     store.createWorkspace('work', 'Work')
@@ -249,7 +249,7 @@ test('untrusted IPC shapes and unsafe addresses are rejected', () => {
 })
 
 test('committed tab state survives abrupt process termination', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-crash-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-crash-'))
   try {
     const path = join(dir, 'session.sqlite')
     const moduleURL = new URL('../src/main/session.ts', import.meta.url).href
@@ -266,7 +266,7 @@ test('committed tab state survives abrupt process termination', () => {
 })
 
 test('tab reorder preserves object identity, pinned boundaries and workspace order on restart', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-tab-order-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-tab-order-'))
   try {
     const a = tab('a', 'https://a.test', true); const b = tab('b', 'https://b.test', true)
     const c = tab('c', 'https://c.test'); const d = tab('d', 'https://d.test')
@@ -292,7 +292,7 @@ test('tab reorder preserves object identity, pinned boundaries and workspace ord
 })
 
 test('moving a tab atomically preserves order, selection and URL navigation across restart', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-workspace-move-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-workspace-move-'))
   try {
     const path = join(dir, 'session.sqlite'); let store = new SessionStore(path)
     store.createWorkspace('work', 'Work')
@@ -348,7 +348,7 @@ test('existing profile registry migrates without changing profiles or selection'
 })
 
 test('profiles retain independent sessions and active selection across restart', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-profiles-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-profiles-'))
   try {
     const registryPath = join(dir, 'profiles.sqlite'); const defaultPath = join(dir, 'session.sqlite'); const workPath = join(dir, 'profile.sqlite')
     let existing = new SessionStore(defaultPath)
@@ -427,7 +427,7 @@ test('split trees cap pane count, collapse removed branches and reject invalid s
 })
 
 test('split layouts persist with their workspace and prune invalid tab references', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wander-split-'))
+  const dir = mkdtempSync(join(tmpdir(), 'idle-split-'))
   try {
     const path = join(dir, 'session.sqlite')
     let store = new SessionStore(path)

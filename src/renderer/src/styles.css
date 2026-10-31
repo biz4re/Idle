@@ -55,6 +55,7 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .workspace-dock-scroll { flex:1; min-width:0; display:flex; gap:5px; overflow-x:auto; padding:2px 2px 3px; scrollbar-width:thin; }
 .workspace-dock-item, .workspace-dock-add { display:grid; place-items:center; width:38px; height:38px; flex:none; border-radius:9px; color:var(--text); font-size:19px; }
 .workspace-dock-item:hover, .workspace-dock-item:focus-visible, .workspace-dock-add:hover, .workspace-dock-add:focus-visible { background:var(--hover); outline:none; }
+.workspace-dock-item:focus-visible, .workspace-dock-add:focus-visible { outline:2px solid var(--text); outline-offset:-2px; }
 .workspace-dock-item.active { background:var(--hover); box-shadow:none; }
 .workspace-dock-add { color:var(--muted); font-size:20px; }
 .favourites-section { flex:none; margin-top:12px; } .favourites-list { overflow:visible; }
@@ -296,3 +297,10 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .profile-chevron { display:flex; align-items:center; justify-content:center; width:16px; height:16px; color:var(--muted); }
 .profile-chevron svg { width:14px; height:14px; }
 .profile-option:focus-visible, .profile-manage:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+
+.library-footer { flex:none; position:relative; padding-top:6px; }
+.library-trigger { display:flex; align-items:center; gap:10px; width:100%; min-height:36px; padding:0 9px; border-radius:var(--radius-sm); color:var(--muted); font-size:12px; text-align:left; }
+.library-trigger:hover, .library-trigger[aria-expanded="true"] { background:var(--hover); color:var(--text); }
+.library-panel { position:absolute; z-index:10; bottom:44px; left:0; right:0; max-height:min(65vh, 480px); overflow-y:auto; padding:8px; border-radius:var(--radius-md); background:var(--surface); box-shadow:var(--menu-shadow); }
+.library-panel-heading { display:flex; align-items:center; justify-content:space-between; padding-left:9px; font-size:12px; }
+.library-panel .favourites-section { margin-top:4px; }

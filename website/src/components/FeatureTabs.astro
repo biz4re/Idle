@@ -1,6 +1,4 @@
 ---
-import { Image } from 'astro:assets';
-import authenticScreenshot from '../assets/quiet-glass-before.jpg';
 import GhostIcon from './GhostIcon.astro';
 ---
 
@@ -19,18 +17,6 @@ import GhostIcon from './GhostIcon.astro';
       <p>Traditional horizontal tabs get smaller with every new page, until you're left guessing which tiny icon is which.</p>
       <p>Idle stacks them neatly down the side. Full titles, tidy groups, and everything right where you expect it.</p>
     </div>
-  </div>
-
-  <!-- Oversized, Visually Focused Screenshot: Magnified on Sidebar Rail -->
-  <div class="relative rounded-3xl overflow-hidden shadow-2xl bg-[#202120] border border-charcoal/10 aspect-16/10 max-h-[680px]">
-    <Image
-      src={authenticScreenshot}
-      alt="Real Idle browser screenshot showcasing vertical tabs and organized groups"
-      width={1186}
-      height={793}
-      loading="lazy"
-      class="w-full h-full object-cover object-left block"
-    />
   </div>
 
   <!-- Three takeaways -->

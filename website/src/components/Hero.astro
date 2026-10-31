@@ -1,6 +1,4 @@
 ---
-import { Image } from 'astro:assets';
-import authenticScreenshot from '../assets/quiet-glass-before.jpg';
 import { DOWNLOAD_CONFIG } from '../config/downloads';
 import GhostIcon from './GhostIcon.astro';
 
@@ -64,26 +62,7 @@ const downloadHref = DOWNLOAD_CONFIG.hasVerifiedInstallers
       </div>
     </div>
 
-    <!-- Full-width Screenshot of the Real Idle Browser with subtle floating ghost mascot -->
-    <div class="relative pt-6 max-w-6xl mx-auto">
-      <!-- Floating Ghost Mascot -->
-      <div class="absolute -top-2 right-4 sm:top-0 sm:right-10 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-warm-surface/95 backdrop-blur-md border border-charcoal-border shadow-lg text-charcoal text-xs font-medium animate-float">
-        <GhostIcon class="w-4 h-4 text-idle-green" />
-        <span class="font-serif italic text-charcoal-muted">I’ll be right here, quietly.</span>
-      </div>
 
-      <!-- Browser Preview Canvas -->
-      <div class="rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-[#202120] border border-charcoal/15 transition-transform duration-500 hover:scale-[1.005]">
-        <Image
-          src={authenticScreenshot}
-          alt="Authentic Idle browser running with vertical tabs, workspaces, and quiet window materials"
-          width={1186}
-          height={793}
-          loading="eager"
-          class="w-full h-auto block"
-        />
-      </div>
-    </div>
 
   </div>
 </section>

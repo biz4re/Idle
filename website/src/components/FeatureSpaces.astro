@@ -1,6 +1,4 @@
 ---
-import { Image } from 'astro:assets';
-import authenticScreenshot from '../assets/quiet-glass-before.jpg';
 ---
 
 <section id="spaces" class="py-24 sm:py-36 bg-warm-canvas/60 border-y border-charcoal-border-subtle">
@@ -21,22 +19,6 @@ import authenticScreenshot from '../assets/quiet-glass-before.jpg';
         <p>
           Idle gives everything its own space, without filling your desktop with windows.
         </p>
-      </div>
-    </div>
-
-    <!-- Real screenshot showing multiple spaces and profile switching -->
-    <div class="relative rounded-3xl overflow-hidden shadow-xl bg-[#202120] border border-charcoal/10 aspect-21/9 max-h-[520px]">
-      <Image
-        src={authenticScreenshot}
-        alt="Real screenshot showing Idle spaces and profile switching"
-        width={1186}
-        height={793}
-        loading="lazy"
-        class="w-full h-full object-cover object-center block opacity-95"
-      />
-      <div class="absolute bottom-6 left-6 sm:bottom-8 sm:left-8 px-4 py-2 rounded-xl bg-charcoal/80 backdrop-blur-md text-warm-bg text-xs font-medium flex items-center gap-2.5">
-        <span class="w-2 h-2 rounded-full bg-idle-green-light"></span>
-        <span>Dedicated spaces per task · Zero desktop window sprawl</span>
       </div>
     </div>
 

@@ -27,7 +27,7 @@ let switchingProfile = false
 let activeProfileId = 'default'
 const deletingProfiles = new Set<string>()
 const profilePath = (id: string): string => join(app.getPath('userData'), id === 'default' ? 'session.sqlite' : `profile-${id}.sqlite`)
-const profilePartition = (id: string): string => `persist:wander-profile-${id}`
+const profilePartition = (id: string): string => `persist:idle-profile-${id}`
 let storageWarning = ''
 const windowId = 'main'
 if (!app.requestSingleInstanceLock()) app.quit()
@@ -576,6 +576,7 @@ function createWindow(): void {
       return
     }
 
+    if (cmd.type === 'settings-menu') { Menu.getApplicationMenu()?.items.find((item) => item.label === 'Settings')?.submenu?.popup({ window, x: cmd.x, y: cmd.y }); return }
     if (cmd.type === 'app-menu' && process.platform === 'win32') {
       const [width = 0, height = 0] = window.getContentSize()
       if (cmd.x <= width && cmd.y <= height) Menu.getApplicationMenu()?.popup({ window, x: cmd.x, y: cmd.y })

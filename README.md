@@ -22,6 +22,8 @@ pnpm start
 
 `build` typechecks and compiles all three processes into `out/`. `start` opens that production build. These scripts do not create a signed macOS bundle or installer. Development also runs on Windows and Linux; macOS has an inset native title bar and the usual dock activation/window lifecycle.
 
+On Windows, `pnpm package:win` builds an unsigned, unpacked application in a new `release/` directory using the installed Electron runtime. It does not create an installer or change the executable's embedded Electron icon.
+
 Application icon assets are in `resources/`: PNG for the Electron window, ICO for Windows packaging, and ICNS for macOS packaging. A future installer or app-bundle configuration must explicitly use the platform icon file; the development build does not create a desktop shortcut or macOS app bundle.
 
 ## Layout
