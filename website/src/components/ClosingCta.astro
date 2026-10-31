@@ -1,0 +1,112 @@
+---
+import { DOWNLOAD_CONFIG } from '../config/downloads';
+import GhostIcon from './GhostIcon.astro';
+
+const downloadHref = DOWNLOAD_CONFIG.hasVerifiedInstallers
+  ? (DOWNLOAD_CONFIG.installers?.mac?.url ?? DOWNLOAD_CONFIG.targetAnchor)
+  : DOWNLOAD_CONFIG.targetAnchor;
+---
+
+<section id="download" class="py-28 sm:py-44 bg-warm-bg text-center">
+  <div class="max-w-4xl mx-auto px-6 sm:px-10 space-y-16">
+    
+    <!-- Top Display Section -->
+    <div class="space-y-8">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-idle-green-soft text-idle-green text-xs font-semibold uppercase tracking-widest mx-auto">
+        <span>Idle Browser · Free & Open Source</span>
+      </div>
+
+      <!-- Massive Display Headline -->
+      <h2 class="text-6xl sm:text-8xl md:text-9xl font-bold tracking-tighter text-charcoal leading-[0.95]">
+        Go on. <br/>
+        <span class="font-serif italic font-normal text-idle-green">Get lost.</span>
+      </h2>
+
+      <div class="space-y-4 text-xl sm:text-2xl text-charcoal-muted max-w-xl mx-auto font-normal leading-relaxed">
+        <p>
+          There's a whole world out there. Strange websites, brilliant ideas, questionable recipes, and rabbit holes worth falling into.
+        </p>
+        <p>
+          We've made a better window to it.
+        </p>
+        <p class="font-bold text-charcoal pt-2">
+          Meet Idle. Your new favourite browser.
+        </p>
+      </div>
+
+      <!-- CTA Buttons -->
+      <div class="pt-4 flex flex-col items-center gap-4">
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a
+            href={downloadHref}
+            class="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-idle-green text-warm-bg text-base font-semibold hover:bg-idle-green-hover transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-idle-green shadow-md hover:shadow-lg"
+          >
+            <span>{DOWNLOAD_CONFIG.ctaText}</span>
+            <svg aria-hidden="true" class="w-4 h-4 text-warm-bg/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+
+          <a
+            href={DOWNLOAD_CONFIG.githubUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-full text-charcoal font-medium hover:text-idle-green transition-colors text-base"
+          >
+            <span>View on GitHub</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+
+        <p class="text-sm font-serif italic text-charcoal-muted max-w-md">
+          macOS & Windows installers coming soon. Developer preview available to build from source.
+        </p>
+      </div>
+
+      <!-- Idle the ghost waving goodbye -->
+      <div class="pt-8 flex flex-col items-center justify-center gap-3">
+        <div class="w-14 h-14 rounded-2xl bg-warm-canvas border border-charcoal-border flex items-center justify-center shadow-xs animate-float">
+          <GhostIcon class="w-7 h-7 text-idle-green" variant="waving" />
+        </div>
+        <p class="font-serif italic text-charcoal-muted text-sm">
+          “I’ll be here. Quietly.”
+        </p>
+      </div>
+    </div>
+
+    <!-- BUILD FROM SOURCE SECTION -->
+    <div class="pt-16 border-t border-charcoal-border text-left max-w-2xl mx-auto space-y-6">
+      <div class="space-y-2 text-center sm:text-left">
+        <h3 class="text-2xl sm:text-3xl font-bold text-charcoal">
+          Can't wait? Neither could we.
+        </h3>
+        <p class="text-charcoal-muted text-base">
+          Idle is open source, and the developer preview is available to build locally.
+        </p>
+        <p class="text-xs text-charcoal-light">
+          Requires Node.js 22+ and pnpm 10.
+        </p>
+      </div>
+
+      <div class="rounded-2xl bg-warm-surface border border-charcoal-border p-6 shadow-xs font-mono text-xs sm:text-sm text-charcoal space-y-2">
+        <pre class="overflow-x-auto leading-relaxed"><code>git clone https://github.com/idlebrowser/idle.git
+cd idle
+pnpm install
+pnpm dev</code></pre>
+      </div>
+
+      <div class="text-center sm:text-left pt-1">
+        <a
+          href={DOWNLOAD_CONFIG.githubUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 text-sm font-semibold text-idle-green hover:underline"
+        >
+          <span>View source on GitHub</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>

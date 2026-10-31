@@ -1,0 +1,71 @@
+---
+const features = [
+  {
+    num: "01",
+    name: "Vertical Tabs",
+    benefit: "Finally, tabs you can actually read. Even when you've opened an embarrassing number.",
+    anchor: "#tabs"
+  },
+  {
+    num: "02",
+    name: "Spaces",
+    benefit: "A place for work, play, projects, and whatever else you've got going on.",
+    anchor: "#spaces"
+  },
+  {
+    num: "03",
+    name: "Profiles",
+    benefit: "Keep personal and work accounts separate. No awkward crossover.",
+    anchor: "#spaces"
+  },
+  {
+    num: "04",
+    name: "Split View",
+    benefit: "Two (or more) pages, one window. Multitasking without the gymnastics.",
+    anchor: "#split"
+  },
+  {
+    num: "05",
+    name: "Later",
+    benefit: "Save interesting things for another day. Whether that day comes is entirely up to you.",
+    anchor: "#later"
+  },
+  {
+    num: "06",
+    name: "Privacy",
+    benefit: "No telemetry. No sponsored nonsense. Just browsing, as it should be.",
+    anchor: "#philosophy"
+  }
+];
+---
+
+<section id="overview" class="max-w-7xl mx-auto px-6 sm:px-10 py-24 sm:py-32">
+  <div class="max-w-3xl mb-16 space-y-4">
+    <span class="text-xs font-semibold uppercase tracking-widest text-idle-green">
+      The Good Stuff.
+    </span>
+    <h2 class="text-4xl sm:text-6xl font-bold tracking-tight text-charcoal leading-[1.05]">
+      Everything you need. <br/>
+      <span class="font-serif italic font-normal text-idle-green">Nothing you don’t.</span>
+    </h2>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-12 sm:gap-y-16">
+    {features.map((item) => (
+      <a
+        href={item.anchor}
+        class="group block space-y-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-idle-green rounded-2xl p-4 -m-4 transition-colors hover:bg-warm-canvas/50"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono text-idle-green font-semibold">
+            {item.num} — {item.name}
+          </span>
+          <span class="text-xs text-charcoal-light opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">↓</span>
+        </div>
+        <p class="text-base text-charcoal-muted leading-relaxed font-normal">
+          {item.benefit}
+        </p>
+      </a>
+    ))}
+  </div>
+</section>

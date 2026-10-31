@@ -11,6 +11,80 @@ import { DatabaseSync } from 'node:sqlite'
 import { searchSavedPages } from '../src/shared/search.ts'
 import { ProfileRegistry } from '../src/main/profiles.ts'
 import { SessionStore } from '../src/main/session.ts'
+import { peekBounds } from '../src/shared/peek-layout.ts'
+import { PeekNavigationGuard } from '../src/main/peek-navigation.ts'
+import { popupRoute } from '../src/main/popup-policy.ts'
+
+test('popup routing keeps tab gestures separate from opener-dependent windows', () => {
+  assert.equal(popupRoute('https://example.com/', 'foreground-tab', false), 'tab')
+  assert.equal(popupRoute('https://example.com/', 'background-tab', false), 'tab')
+  assert.equal(popupRoute('https://example.com/', 'default', false), 'window')
+  assert.equal(popupRoute('about:blank', 'default', false), 'window')
+  assert.equal(popupRoute('https://example.com/', 'foreground-tab', true), 'window')
+  assert.equal(popupRoute('mailto:user@example.com', 'default', false), 'external')
+})
+
+test('Peek navigation guard cancels only the matching source and destination once', () => {
+  const guard = new PeekNavigationGuard()
+  guard.arm('source', 'https://example.com/', 1000)
+  assert.equal(guard.consume('other', 'https://example.com/', 1001), false)
+  assert.equal(guard.consume('source', 'https://other.example/', 1001), false)
+  assert.equal(guard.consume('source', 'https://example.com/', 1001), true)
+  assert.equal(guard.consume('source', 'https://example.com/', 1002), false)
+  guard.arm('source', 'https://example.com/', 1000)
+  assert.equal(guard.consume('source', 'https://example.com/', 2501), false)
+})
+import { isCrossSiteLink, shouldPeekLink } from '../src/shared/peek-link.ts'
+
+test('Peek modes choose normal or Alt clicks without changing same-site automatic navigation', () => {
+  const source = 'https://en.wikipedia.org/'
+  assert.equal(shouldPeekLink('automatic', false, source, 'https://google.com/'), true)
+  assert.equal(shouldPeekLink('automatic', true, source, 'https://google.com/'), false)
+  assert.equal(shouldPeekLink('automatic', false, source, 'https://fr.wikipedia.org/'), false)
+  assert.equal(shouldPeekLink('manual', false, source, 'https://google.com/'), false)
+  assert.equal(shouldPeekLink('manual', true, source, 'https://fr.wikipedia.org/'), true)
+  assert.equal(shouldPeekLink('manual', true, source, 'javascript:alert(1)'), false)
+})
+
+test('Peek mode is saved separately per Profile', () => {
+  const registry = new ProfileRegistry(':memory:')
+  try {
+    const ids = registry.list().map((profile) => profile.id)
+    assert.equal(registry.peekMode(ids[0]), 'automatic')
+    registry.setPeekMode(ids[0], 'manual')
+    assert.equal(registry.peekMode(ids[0]), 'manual')
+    assert.equal(registry.peekMode(ids[1]), 'automatic')
+  } finally { registry.close() }
+})
+
+test('Peek site comparison respects public and private suffixes', () => {
+  assert.equal(isCrossSiteLink('https://en.wikipedia.org/wiki/A', 'https://www.google.com/'), true)
+  assert.equal(isCrossSiteLink('https://en.wikipedia.org/', 'https://fr.wikipedia.org/'), false)
+  assert.equal(isCrossSiteLink('https://a.example.co.uk/', 'https://b.example.co.uk/'), false)
+  assert.equal(isCrossSiteLink('https://a.github.io/', 'https://b.github.io/'), true)
+  assert.equal(isCrossSiteLink('https://example.com/', 'mailto:test@example.com'), false)
+  assert.equal(isCrossSiteLink('https://localhost/', 'https://example.com/'), false)
+})
+
+test('Peek toolbar and webpage fit inside their source pane without overlap', () => {
+  for (const area of [{ x: 100, y: 80, width: 800, height: 600 }, { x: 30, y: 40, width: 180, height: 100 }, { x: 0, y: 0, width: 8, height: 8 }]) {
+    const { toolbar, page } = peekBounds(area)
+    assert.equal(page.y, toolbar.y + toolbar.height)
+    assert.equal(page.x, toolbar.x)
+    assert.ok(toolbar.width <= page.width)
+    assert.ok(page.x >= area.x && page.y + page.height <= area.y + area.height)
+    assert.ok(page.x + page.width <= area.x + area.width)
+  }
+})
+
+test('Peek commands accept only bounded web addresses and valid source IDs', () => {
+  assert.equal(isTabCommand({ type: 'peek-open', id: 'tab-1', url: 'https://example.com/' }), true)
+  assert.equal(isTabCommand({ type: 'peek-open', id: 'tab-1', url: 'file:///secret' }), false)
+  assert.equal(isTabCommand({ type: 'peek-open', id: '', url: 'https://example.com/' }), false)
+  assert.equal(isTabCommand({ type: 'peek-close', id: 'tab-1' }), true)
+  assert.equal(isTabCommand({ type: 'peek-close', id: '' }), false)
+  assert.equal(isTabCommand({ type: 'peek-expand' }), true)
+})
 
 const tab = (id, url, pinned = false) => ({ id, url, pinned, title: id, favicon: '', loading: false, canGoBack: false, canGoForward: false, error: '' })
 
@@ -197,6 +271,35 @@ test('moving a tab atomically preserves order, selection and URL navigation acro
   } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 })
 
+test('fresh profile defaults are created once and retain their icons', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'idle-fresh-profiles-'))
+  let registry
+  try {
+    const path = join(dir, 'profiles.sqlite')
+    registry = new ProfileRegistry(path)
+    const initial = registry.list()
+    assert.deepEqual(initial.map(({ name, icon }) => [name, icon]), [['Personal', 'personal'], ['Work', 'work']])
+    assert.equal(registry.active(), 'default')
+    const workId = initial[1].id
+    registry.select(workId); registry.rename(workId, 'Office'); registry.close()
+    registry = new ProfileRegistry(path)
+    assert.equal(registry.active(), workId)
+    assert.deepEqual(registry.list().map(({ name, icon }) => [name, icon]), [['Personal', 'personal'], ['Office', 'work']])
+  } finally { registry?.close(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
+})
+
+test('existing profile registry migrates without changing profiles or selection', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'idle-existing-profiles-'))
+  let registry
+  try {
+    const path = join(dir, 'profiles.sqlite'); const db = new DatabaseSync(path)
+    db.exec("CREATE TABLE profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL); CREATE TABLE selection (id INTEGER PRIMARY KEY, profile_id TEXT NOT NULL); INSERT INTO profiles VALUES ('default', 'Original', 0), ('11111111-1111-4111-8111-111111111111', 'Work', 1); INSERT INTO selection VALUES (1, '11111111-1111-4111-8111-111111111111')")
+    db.close(); registry = new ProfileRegistry(path)
+    assert.deepEqual(registry.list().map(({ name, icon }) => [name, icon]), [['Original', 'personal'], ['Work', 'work']])
+    assert.equal(registry.active(), '11111111-1111-4111-8111-111111111111')
+  } finally { registry?.close(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
+})
+
 test('profiles retain independent sessions and active selection across restart', () => {
   const dir = mkdtempSync(join(tmpdir(), 'wander-profiles-'))
   try {
@@ -209,7 +312,7 @@ test('profiles retain independent sessions and active selection across restart',
     assert.equal(registry.active(), 'default')
     assert.equal(registry.sidebarWidth(), 232); registry.setSidebarWidth(318)
     assert.throws(() => registry.setSidebarWidth(10000))
-    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default' }])
+    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default', icon: 'personal' }])
     const id = '11111111-1111-4111-8111-111111111111'; registry.create(id, 'Work'); registry.select(id)
     let work = new SessionStore(workPath)
     work.save('main', [tab('work', 'https://example.org')], 'work', [])
@@ -224,7 +327,7 @@ test('profiles retain independent sessions and active selection across restart',
     assert.deepEqual(work.favourites(), [])
     registry.rename(id, 'Personal'); assert.equal(registry.list()[1]?.name, 'Personal')
     assert.throws(() => registry.remove(id)); registry.select('default'); registry.remove(id)
-    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default' }])
+    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default', icon: 'personal' }])
     existing.close(); work.close(); registry.close()
   } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 })
@@ -310,3 +413,30 @@ test('pane navigation rejects malformed commands', () => {
   assert.equal(isTabCommand({ type: 'pane-command', id: 'tab', action: 'close' }), false)
   assert.equal(isTabCommand({ type: 'pane-menu', id: 'tab', x: -1, y: 0 }), false)
 })
+
+test('pane switchers validate their target and menu coordinates', () => {
+  assert.equal(isTabCommand({ type: 'pane-switcher', id: 'a', kind: 'workspace', x: 20, y: 44 }), true)
+  assert.equal(isTabCommand({ type: 'pane-switcher', id: 'a', kind: 'group', x: 20, y: 44 }), true)
+  assert.equal(isTabCommand({ type: 'pane-switcher', id: 'a', kind: 'other', x: 20, y: 44 }), false)
+  assert.equal(isTabCommand({ type: 'pane-switcher', id: '', kind: 'group', x: 20, y: 44 }), false)
+  assert.equal(isTabCommand({ type: 'pane-switcher', id: 'a', kind: 'group', x: -1, y: 44 }), false)
+})
+
+test('deleting a group keeps its tabs and persists ungrouping', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'idle-groups-'))
+  let store
+  try {
+    const path = join(dir, 'session.sqlite')
+    store = new SessionStore(path)
+    store.save('main', [tab('a', 'https://example.com'), tab('b', 'https://example.org')], 'a', [])
+    store.createGroup('main', 'g', 'Reading', '#55766b')
+    store.setTabGroup('a', 'g', 'main')
+    assert.equal(store.groups('main')[0].tabIds.length, 1)
+    store.updateGroup('g', 'delete')
+    store.close()
+    store = new SessionStore(path)
+    assert.equal(store.groups('main').length, 0)
+    assert.deepEqual(store.load('main').tabs.map((item) => [item.id, item.groupId ?? null]), [['a', null], ['b', null]])
+  } finally { store?.close(); rmSync(dir, { recursive: true, force: true }) }
+})
+

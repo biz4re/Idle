@@ -1,0 +1,76 @@
+---
+import { Image } from 'astro:assets';
+import authenticScreenshot from '../assets/quiet-glass-before.jpg';
+---
+
+<section id="spaces" class="py-24 sm:py-36 bg-warm-canvas/60 border-y border-charcoal-border-subtle">
+  <div class="max-w-7xl mx-auto px-6 sm:px-10 space-y-16">
+    <!-- Header -->
+    <div class="max-w-3xl space-y-4">
+      <span class="text-xs font-semibold uppercase tracking-widest text-idle-green">
+        02 / Spaces & Profiles
+      </span>
+      <h2 class="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-charcoal leading-[1.05]">
+        One browser. <br/>
+        <span class="font-serif italic font-normal text-idle-green">Many lives.</span>
+      </h2>
+      <div class="space-y-4 text-lg sm:text-xl text-charcoal-muted leading-relaxed font-normal pt-2">
+        <p>
+          Your work projects shouldn't be tangled up with holiday plans, shopping lists, and that recipe you'll never make.
+        </p>
+        <p>
+          Idle gives everything its own space, without filling your desktop with windows.
+        </p>
+      </div>
+    </div>
+
+    <!-- Real screenshot showing multiple spaces and profile switching -->
+    <div class="relative rounded-3xl overflow-hidden shadow-xl bg-[#202120] border border-charcoal/10 aspect-21/9 max-h-[520px]">
+      <Image
+        src={authenticScreenshot}
+        alt="Real screenshot showing Idle spaces and profile switching"
+        width={1186}
+        height={793}
+        loading="lazy"
+        class="w-full h-full object-cover object-center block opacity-95"
+      />
+      <div class="absolute bottom-6 left-6 sm:bottom-8 sm:left-8 px-4 py-2 rounded-xl bg-charcoal/80 backdrop-blur-md text-warm-bg text-xs font-medium flex items-center gap-2.5">
+        <span class="w-2 h-2 rounded-full bg-idle-green-light"></span>
+        <span>Dedicated spaces per task · Zero desktop window sprawl</span>
+      </div>
+    </div>
+
+    <!-- Three sub-features -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
+      <div class="space-y-3">
+        <h3 class="text-xl font-bold text-charcoal">A space for everything</h3>
+        <p class="text-sm text-charcoal-muted leading-relaxed">
+          Keep work, personal projects, and late-night rabbit holes in their own spaces. Each with its own tabs and groups.
+        </p>
+        <p class="text-sm text-charcoal-muted leading-relaxed pt-1">
+          Switch between them instantly. No window juggling required.
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xl font-bold text-charcoal">Separate accounts. Zero awkwardness.</h3>
+        <p class="text-sm text-charcoal-muted leading-relaxed">
+          Work login? Personal login? Three different accounts for the same website?
+        </p>
+        <p class="text-sm text-charcoal-muted leading-relaxed pt-1">
+          Profiles keep your sessions properly separated, so your accounts don't accidentally mingle.
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xl font-bold text-charcoal">Right where you left it</h3>
+        <p class="text-sm text-charcoal-muted leading-relaxed">
+          Close Idle. Restart your computer. Go make a cup of tea.
+        </p>
+        <p class="text-sm text-charcoal-muted leading-relaxed pt-1">
+          Your tabs and spaces will be waiting when you get back. Just as you left them.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

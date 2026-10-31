@@ -1,0 +1,87 @@
+---
+import GhostIcon from './GhostIcon.astro';
+---
+
+<section id="philosophy" class="py-28 sm:py-44 bg-charcoal-dark text-warm-bg relative overflow-hidden">
+  <!-- Subtle green ambient gradient for visual depth -->
+  <div class="absolute inset-0 bg-radial-[at_top] from-idle-green/20 via-transparent to-transparent pointer-events-none" aria-hidden="true"></div>
+
+  <div class="max-w-4xl mx-auto px-6 sm:px-10 text-center space-y-12 relative z-10">
+    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 text-idle-green-light border border-white/10 text-xs font-semibold tracking-widest uppercase">
+      <GhostIcon class="w-3.5 h-3.5 text-idle-green-light" />
+      <span>The Idle Manifesto</span>
+    </div>
+
+    <h2 class="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-[1.06]">
+      The world moved on. <br/>
+      <span class="font-serif italic font-normal text-idle-green-light">We thought browsing should too.</span>
+    </h2>
+
+    <div class="space-y-6 max-w-2xl mx-auto text-lg sm:text-xl text-warm-bg/80 font-normal leading-relaxed text-left sm:text-center">
+      <p>
+        The browser started as a simple window to explore the internet.
+      </p>
+      <p>
+        Then the internet became our workplace, our library, our entertainment, and somewhere we spend an unreasonable amount of our lives.
+      </p>
+      <p>
+        Along the way came the clutter. More tabs. More windows. More distractions. More things competing for your attention.
+      </p>
+      <p>
+        We built Idle because we think browsing can be better.
+      </p>
+      <p>
+        Thoughtful features. A calmer experience. A browser that helps you get where you're going without trying to become the destination.
+      </p>
+      <p class="font-serif italic text-idle-green-light text-xl sm:text-2xl pt-2">
+        And like any good ghost, Idle knows when to disappear.
+      </p>
+      <div class="pt-4">
+        <p class="text-xl sm:text-2xl font-bold text-white">
+          No telemetry. No sponsored content. No unnecessary noise.
+        </p>
+        <p class="text-base text-warm-bg/70 pt-2">
+          Just you and whatever wonderfully weird corner of the internet you're exploring.
+        </p>
+      </div>
+    </div>
+
+    <!-- A few things we believe in -->
+    <div class="pt-12 text-left max-w-3xl mx-auto space-y-8 border-t border-white/10">
+      <h3 class="text-xs font-semibold uppercase tracking-widest text-idle-green-light text-center">
+        A few things we believe in
+      </h3>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 text-sm">
+        <div class="space-y-2 p-5 rounded-2xl bg-white/5 border border-white/5">
+          <h4 class="font-bold text-white text-base">Your attention is yours.</h4>
+          <p class="text-warm-bg/70 leading-relaxed">
+            No sponsored shortcuts, algorithmic feeds, or distractions dressed up as features.
+          </p>
+        </div>
+
+        <div class="space-y-2 p-5 rounded-2xl bg-white/5 border border-white/5">
+          <h4 class="font-bold text-white text-base">Your browsing is your business.</h4>
+          <p class="text-warm-bg/70 leading-relaxed">
+            No telemetry collecting your every move. Your browser shouldn't need to know everything about you.
+          </p>
+        </div>
+
+        <div class="space-y-2 p-5 rounded-2xl bg-white/5 border border-white/5">
+          <h4 class="font-bold text-white text-base">Good software should feel effortless.</h4>
+          <p class="text-warm-bg/70 leading-relaxed">
+            Powerful when you need it. Out of the way when you don't.
+          </p>
+        </div>
+
+        <div class="space-y-2 p-5 rounded-2xl bg-white/5 border border-white/5">
+          <h4 class="font-bold text-white text-base">Open is better.</h4>
+          <p class="text-warm-bg/70 leading-relaxed">
+            Idle is free and open source. See how it's built, contribute, or just enjoy using it.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

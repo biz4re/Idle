@@ -1,0 +1,10 @@
+# Build outputs & caches
+dist/
+.astro/
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+

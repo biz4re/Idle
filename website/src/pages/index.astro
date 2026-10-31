@@ -1,0 +1,35 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Hero from '../components/Hero.astro';
+import TheProblem from '../components/TheProblem.astro';
+import FeatureOverview from '../components/FeatureOverview.astro';
+import FeatureTabs from '../components/FeatureTabs.astro';
+import FeatureSpaces from '../components/FeatureSpaces.astro';
+import FeatureSplit from '../components/FeatureSplit.astro';
+import FeatureLater from '../components/FeatureLater.astro';
+import Philosophy from '../components/Philosophy.astro';
+import ClosingCta from '../components/ClosingCta.astro';
+import Footer from '../components/Footer.astro';
+import FloatingDownloadBar from '../components/FloatingDownloadBar.astro';
+---
+
+<Layout
+  title="Idle — The world moved on. Your browser didn’t."
+  description="Meet Idle. A fresh take on browsing, built for how we live online today. Smarter tabs, organised spaces, and a little less chaos."
+>
+  <Navbar />
+  <main id="content">
+    <Hero />
+    <TheProblem />
+    <FeatureOverview />
+    <FeatureTabs />
+    <FeatureSpaces />
+    <FeatureSplit />
+    <FeatureLater />
+    <Philosophy />
+    <ClosingCta />
+  </main>
+  <FloatingDownloadBar />
+  <Footer />
+</Layout>

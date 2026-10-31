@@ -11,6 +11,10 @@ export function isTabCommand(value: unknown): value is TabCommand {
   if (simpleActions.has(cmd.type)) return true
   if (idActions.has(cmd.type)) return id(cmd.id)
   switch (cmd.type) {
+    case 'peek-back': case 'peek-expand': return true
+    case 'peek-open': return id(cmd.id) && text(cmd.url, 8192) && isWebURL(cmd.url)
+    case 'peek-close': return id(cmd.id)
+    case 'pane-switcher': return id(cmd.id) && (cmd.kind === 'workspace' || cmd.kind === 'group') && typeof cmd.x === 'number' && Number.isInteger(cmd.x) && cmd.x >= 0 && cmd.x <= 100000 && typeof cmd.y === 'number' && Number.isInteger(cmd.y) && cmd.y >= 0 && cmd.y <= 100000
     case 'create': return cmd.groupId === undefined || id(cmd.groupId)
     case 'pane-command': return id(cmd.id) && ['back', 'forward', 'reload', 'stop', 'navigate'].includes(String(cmd.action)) && (cmd.action !== 'navigate' || text(cmd.value, 8192))
     case 'pane-menu': return id(cmd.id) && typeof cmd.x === 'number' && Number.isInteger(cmd.x) && cmd.x >= 0 && cmd.x <= 100000 && typeof cmd.y === 'number' && Number.isInteger(cmd.y) && cmd.y >= 0 && cmd.y <= 100000
@@ -29,6 +33,7 @@ export function isTabCommand(value: unknown): value is TabCommand {
     case 'profile-rename': return id(cmd.id) && text(cmd.name, 80)
     case 'workspace-create': return text(cmd.name, 80)
     case 'workspace-rename': return id(cmd.id) && text(cmd.name, 80)
+    case 'workspace-emoji': return id(cmd.id) && text(cmd.emoji, 8)
     case 'later-note': return id(cmd.id) && text(cmd.note, 2000)
     case 'group-create': return text(cmd.name, 80) && text(cmd.color, 32)
     case 'group-rename': return id(cmd.id) && text(cmd.name, 80)

@@ -1,0 +1,91 @@
+---
+import { DOWNLOAD_CONFIG } from '../config/downloads';
+import GhostIcon from './GhostIcon.astro';
+
+const downloadHref = DOWNLOAD_CONFIG.hasVerifiedInstallers
+  ? (DOWNLOAD_CONFIG.installers?.mac?.url ?? DOWNLOAD_CONFIG.targetAnchor)
+  : DOWNLOAD_CONFIG.targetAnchor;
+---
+
+<aside
+  id="floating-download-bar"
+  class="fixed inset-x-0 mx-auto z-40 w-fit max-w-[calc(100vw-2rem)] pointer-events-none opacity-0 translate-y-6 transition-all duration-300 ease-out"
+  style="bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));"
+  aria-label="Quick download"
+  aria-hidden="true"
+  inert
+>
+  <div class="pointer-events-auto flex items-center justify-between gap-3 sm:gap-6 px-4 py-2.5 sm:px-5 sm:py-3 rounded-full bg-warm-surface/95 backdrop-blur-md border border-charcoal-border shadow-xl text-charcoal">
+    <!-- Brand & Short Supporting Copy -->
+    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+      <div class="w-6 h-6 rounded-md bg-idle-green text-warm-bg flex items-center justify-center shrink-0">
+        <GhostIcon class="w-3.5 h-3.5 text-warm-bg" />
+      </div>
+      <div class="min-w-0">
+        <p class="text-xs font-bold text-charcoal leading-tight truncate">Idle</p>
+        <p class="text-[11px] text-charcoal-muted leading-tight truncate hidden sm:block">A quieter way to browse</p>
+      </div>
+    </div>
+
+    <!-- Prominent Download Action -->
+    <a
+      href={downloadHref}
+      class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-idle-green text-warm-bg hover:bg-idle-green-hover transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-idle-green shadow-xs"
+    >
+      <span>{DOWNLOAD_CONFIG.ctaText}</span>
+      {!DOWNLOAD_CONFIG.hasVerifiedInstallers && (
+        <span class="text-[10px] opacity-80 font-normal">· Soon</span>
+      )}
+    </a>
+  </div>
+</aside>
+
+<script>
+  function setupFloatingDownload() {
+    const bar = document.getElementById('floating-download-bar');
+    const hero = document.getElementById('hero');
+    const closingCta = document.getElementById('download');
+
+    if (!bar || !hero || !closingCta) return;
+
+    let heroVisible = true;
+    let ctaVisible = false;
+
+    const updateVisibility = () => {
+      // Reveal when hero has left the viewport AND closing CTA has not yet entered
+      const shouldShow = !heroVisible && !ctaVisible;
+      if (shouldShow) {
+        bar.classList.remove('opacity-0', 'translate-y-6', 'pointer-events-none');
+        bar.classList.add('opacity-100', 'translate-y-0');
+        bar.setAttribute('aria-hidden', 'false');
+        bar.removeAttribute('inert');
+      } else {
+        bar.classList.remove('opacity-100', 'translate-y-0');
+        bar.classList.add('opacity-0', 'translate-y-6', 'pointer-events-none');
+        bar.setAttribute('aria-hidden', 'true');
+        bar.setAttribute('inert', '');
+      }
+    };
+
+    // Hero observer: triggers when hero exits/enters
+    const heroObserver = new IntersectionObserver(([entry]) => {
+      heroVisible = entry.isIntersecting;
+      updateVisibility();
+    }, { threshold: 0.05 });
+
+    // Closing CTA observer: triggers when closing CTA enters/exits
+    const ctaObserver = new IntersectionObserver(([entry]) => {
+      ctaVisible = entry.isIntersecting;
+      updateVisibility();
+    }, { threshold: 0.05 });
+
+    heroObserver.observe(hero);
+    ctaObserver.observe(closingCta);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFloatingDownload);
+  } else {
+    setupFloatingDownload();
+  }
+</script>

@@ -4,13 +4,17 @@ import { release } from 'node:os'
 import { browserShortcut, type BrowserShortcut } from './shortcuts'
 import { groupPinnedTabs, reorderTabs } from '../shared/tab-order'
 import { splitPane, splitTabIds, removeSplitTab, type SplitTree } from '../shared/split-tree'
+import { peekBounds } from '../shared/peek-layout'
+import { shouldPeekLink } from '../shared/peek-link'
+import { PeekNavigationGuard } from './peek-navigation'
+import { popupRoute } from './popup-policy'
 import { isTabCommand, isViewBounds, isWebURL } from './security'
 import { randomUUID } from 'node:crypto'
 import { unlink } from 'node:fs/promises'
 import { ProfileRegistry } from './profiles'
 import { SessionStore, type SavedTab } from './session'
 import { pathToFileURL } from 'node:url'
-import { APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, type DownloadState, type TabState, type ViewBounds, type AppInfo } from '../shared/ipc'
+import { APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, PEEK_HOST_CHANNEL, type DownloadState, type TabState, type ViewBounds, type AppInfo } from '../shared/ipc'
 
 app.setName('Idle')
 app.enableSandbox()
@@ -97,12 +101,25 @@ function createWindow(): void {
   let findOpen = false
   let findText = ''
   let findRequest = 0
+  const peeks = new Map<string, { page: WebContentsView; toolbar: WebContentsView; backdrop: WebContentsView }>()
+  const peekNavigation = new PeekNavigationGuard()
+  const closePeek = (id: string, focus = false): void => {
+    const pair = peeks.get(id); if (!pair) return
+    peeks.delete(id)
+    for (const view of [pair.toolbar, pair.page, pair.backdrop]) {
+      if (!window.isDestroyed()) window.contentView.removeChildView(view)
+      if (!view.webContents.isDestroyed()) view.webContents.close()
+    }
+    const visible = splitTree ? splitTabIds(splitTree).includes(id) : activeId === id
+    const source = tabs.get(id)?.view.webContents
+    if (focus && visible && !window.isDestroyed() && source && !source.isDestroyed()) { activeId = id; source.focus() }
+  }
   const trusted = (event: Electron.IpcMainEvent): boolean => profileId === activeProfileId && event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame && event.senderFrame?.url === rendererURL
   const publish = (): void => {
     if (window.isDestroyed() || profileId !== activeProfileId) return
     const states = [...tabs.values()].map((tab) => tab.state)
     if (!restoring && !suppressSave) { try { store.save(activeWorkspaceId, states, activeId, closed, splitTree) } catch (error) { console.error('Unable to save session:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } }
-    if (!window.isDestroyed()) window.webContents.send(TAB_STATE_CHANNEL, { splitTree, tabs: states, groups: store.groups(activeWorkspaceId), activeId, recentlyClosed: closed.length, workspaces: store.workspaces(), activeWorkspaceId, later: store.later(activeWorkspaceId), laterError, favourites: store.favourites(), searchLater: store.workspaces().flatMap((workspace) => store.later(workspace.id)), history: store.history(), downloads, storageWarning, profiles: profiles.list(), activeProfileId: profileId, sidebarWidth: profiles.sidebarWidth(), navigationError, announcement })
+    if (!window.isDestroyed()) window.webContents.send(TAB_STATE_CHANNEL, { splitTree, tabs: states, groups: store.groups(activeWorkspaceId), activeId, recentlyClosed: closed.length, workspaces: store.workspaces().map((workspace) => ({ ...workspace, emoji: store.workspaceEmoji(workspace.id) })), activeWorkspaceId, later: store.later(activeWorkspaceId), laterError, favourites: store.favourites(), searchLater: store.workspaces().flatMap((workspace) => store.later(workspace.id)), history: store.history(), downloads, storageWarning, profiles: profiles.list(), activeProfileId: profileId, sidebarWidth: profiles.sidebarWidth(), navigationError, announcement })
     announcement = ''
   }
   const layout = (): void => {
@@ -110,7 +127,7 @@ function createWindow(): void {
     const x = Math.min(width, Math.round(bounds.x)); const y = Math.min(height, Math.round(bounds.y))
     const rect = { x, y, width: Math.max(0, Math.min(width - x, Math.round(bounds.width))), height: Math.max(0, Math.min(height - y, Math.round(bounds.height))) }
     const place = (node: SplitTree, area: typeof rect): void => {
-      if (node.type === 'leaf') { tabs.get(node.tabId)?.view.setBounds({ x: area.x + 1, y: area.y + 41, width: Math.max(0, area.width - 2), height: Math.max(0, area.height - 42) }); return }
+      if (node.type === 'leaf') { const top = Math.min(area.height, 44); tabs.get(node.tabId)?.view.setBounds({ x: area.x + 1, y: area.y + top, width: Math.max(0, area.width - 2), height: Math.max(0, area.height - top - 1) }); return }
       const gap = 8; const horizontal = node.orientation === 'horizontal'
       const size = horizontal ? area.width : area.height
       const first = Math.max(0, Math.round((size - gap) * node.ratio)); const second = Math.max(0, size - gap - first)
@@ -118,7 +135,12 @@ function createWindow(): void {
       else { place(node.first, { ...area, height: first }); place(node.second, { ...area, y: area.y + first + gap, height: second }) }
     }
     if (splitTree) place(splitTree, rect)
-    else if (activeId) tabs.get(activeId)?.view.setBounds({ ...rect, y: rect.y + Math.min(40, rect.height), height: Math.max(0, rect.height - 40) })
+    else if (activeId) { const top = Math.min(rect.height, 44); tabs.get(activeId)?.view.setBounds({ ...rect, y: rect.y + top, height: Math.max(0, rect.height - top) }) }
+    for (const [id, pair] of peeks) {
+      const source = tabs.get(id); if (!source || !(splitTree ? splitTabIds(splitTree).includes(id) : activeId === id)) { closePeek(id); continue }
+      const result = peekBounds(rect)
+      pair.backdrop.setBounds(rect); pair.toolbar.setBounds(result.toolbar); pair.page.setBounds(result.page)
+    }
   }
   const loadTab = (tab: Tab): void => {
     if (tab.loaded || !tab.state.url) return
@@ -133,6 +155,7 @@ function createWindow(): void {
       if (visible.includes(tabId)) { window.contentView.addChildView(tab.view); if (!restoring) loadTab(tab) }
       else window.contentView.removeChildView(tab.view)
     }
+    for (const pair of peeks.values()) { window.contentView.addChildView(pair.backdrop); window.contentView.addChildView(pair.page); window.contentView.addChildView(pair.toolbar) }
     layout()
   }
   const activate = (id: string | null, focusPage = false): void => {
@@ -152,7 +175,7 @@ function createWindow(): void {
   }
   const create = (saved?: SavedTab, select = true, workspaceId = activeWorkspaceId, destination = tabs): WebContents => {
     const id = saved?.id ?? randomUUID()
-    const view = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false, webviewTag: false, webSecurity: true, partition: profilePartition(profileId) } })
+    const view = new WebContentsView({ webPreferences: { preload: join(__dirname, '../preload/page.js'), sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false, webviewTag: false, webSecurity: true, partition: profilePartition(profileId) } })
     // Keep native backing consistent with the canvas during resize and loading.
     view.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#292b29' : '#fbfaf8')
     view.setBorderRadius(15)
@@ -161,6 +184,7 @@ function createWindow(): void {
     const ownedTab: Tab = { view, state, loaded: false, presented: false, workspaceId }
     destination.set(id, ownedTab)
     const contents = view.webContents
+    contents.once('destroyed', () => { peekNavigation.clear(id); closePeek(id) })
     const refresh = (): void => {
       const ownerId = ownedTab.workspaceId
       const ownerTabs = ownerId === activeWorkspaceId ? tabs : workspaceCache.get(ownerId)?.tabs
@@ -176,10 +200,21 @@ function createWindow(): void {
     }
     installShortcuts(contents)
     contents.on('focus', () => { if (ownedTab.workspaceId === activeWorkspaceId && splitTree && splitTabIds(splitTree).includes(id) && activeId !== id) activate(id) })
-    contents.setWindowOpenHandler(({ url, disposition }) => {
+    contents.setWindowOpenHandler(({ url, disposition, postBody }) => {
       if (ownedTab.workspaceId !== activeWorkspaceId || activeId !== id || !contents.isFocused() || tabs.size >= 100) return { action: 'deny' }
-      if (!isWebURL(url) && url !== 'about:blank') { void confirmExternal(url, contents); return { action: 'deny' } }
-      return { action: 'allow', createWindow: () => create(undefined, disposition !== 'background-tab') }
+      const route = popupRoute(url, disposition, !!postBody)
+      if (route === 'external') { void confirmExternal(url, contents); return { action: 'deny' } }
+      if (route === 'window') return { action: 'allow', overrideBrowserWindowOptions: { webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false, webviewTag: false, webSecurity: true, partition: profilePartition(profileId) } } }
+      if (route === 'tab' && !peekNavigation.consume(id, url)) {
+        setImmediate(() => { if (!window.isDestroyed() && profileId === activeProfileId && ownedTab.workspaceId === activeWorkspaceId && tabs.get(id) === ownedTab && tabs.size < 100) create({ id: randomUUID(), url, pinned: false }, disposition !== 'background-tab') })
+      }
+      return { action: 'deny' }
+    })
+    contents.on('did-create-window', (popup) => {
+      const child = popup.webContents
+      child.on('will-navigate', (event, url) => { if (!isWebURL(url) && url !== 'about:blank') { event.preventDefault(); if (child.isFocused()) void confirmExternal(url, child) } })
+      child.on('will-redirect', (event, url) => { if (!isWebURL(url) && url !== 'about:blank') event.preventDefault() })
+      child.setWindowOpenHandler(({ url }) => { if (!isWebURL(url) && url !== 'about:blank') { if (child.isFocused()) void confirmExternal(url, child); return { action: 'deny' } } return { action: 'allow', overrideBrowserWindowOptions: { webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false, webviewTag: false, webSecurity: true, partition: profilePartition(profileId) } } } })
     })
     contents.on('context-menu', (_event, params) => {
       const template: Electron.MenuItemConstructorOptions[] = []
@@ -195,7 +230,7 @@ function createWindow(): void {
       }
       if (template.length) Menu.buildFromTemplate(template).popup({ window })
     })
-    contents.on('will-navigate', (event, url) => { if (!isWebURL(url)) { event.preventDefault(); if (activeId === id && contents.isFocused()) void confirmExternal(url, contents) } })
+    contents.on('will-navigate', (event, url) => { if (peekNavigation.consume(id, url)) { event.preventDefault(); return } if (!isWebURL(url)) { event.preventDefault(); if (activeId === id && contents.isFocused()) void confirmExternal(url, contents) } })
     contents.on('will-frame-navigate', (event) => { if (!event.isMainFrame && !isWebURL(event.url) && event.url !== 'about:blank' && event.url !== 'about:srcdoc' && !/^(?:blob:|data:)/i.test(event.url)) event.preventDefault() })
     contents.on('will-redirect', (event, url) => { if (!isWebURL(url)) event.preventDefault() })
     contents.on('found-in-page', (_event, result) => { if (activeId === id && ownedTab.workspaceId === activeWorkspaceId && findOpen && result.requestId === findRequest && !window.isDestroyed()) window.webContents.send(FIND_RESULT_CHANNEL, { matches: result.matches, activeMatchOrdinal: result.activeMatchOrdinal }) })
@@ -252,6 +287,7 @@ function createWindow(): void {
   }
   const switchWorkspace = (id: string, persistSelection = true): void => {
     if (id === activeWorkspaceId || !store.workspaces().some((workspace) => workspace.id === id)) return
+    for (const peekId of peeks.keys()) closePeek(peekId)
     if (findOpen) performShortcut('dismiss')
     if (persistSelection) store.selectWorkspace(windowId, id)
     restoring = true
@@ -317,7 +353,7 @@ function createWindow(): void {
   }
   const togglePin = (id: string): void => {
     const tab = tabs.get(id); if (!tab) return
-    tab.state.pinned = !tab.state.pinned; regroupTabs()
+    tab.state.pinned = !tab.state.pinned; if (tab.state.pinned && tab.state.groupId) { store.setTabGroup(id, null, activeWorkspaceId); tab.state.groupId = null } regroupTabs()
     announcement = `${tab.state.title} ${tab.state.pinned ? 'pinned' : 'unpinned'}, position ${[...tabs.keys()].indexOf(id) + 1} of ${tabs.size}.`
     publish()
   }
@@ -377,9 +413,95 @@ function createWindow(): void {
     splitTree = next?.type === 'split' ? next : null
     activeId = remaining[0] ?? null; attachVisible(); announcement = 'Split closed.'; publish()
   }
+  const openPeek = (peekId: string, url: string): boolean => {
+      const visible = splitTree ? splitTabIds(splitTree) : activeId ? [activeId] : []
+      if (!visible.includes(peekId) || !tabs.has(peekId) || !isWebURL(url)) return false
+      closePeek(peekId)
+      const view = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false, webviewTag: false, webSecurity: true, partition: profilePartition(profileId) } })
+      const toolbar = new WebContentsView({ webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true, nodeIntegration: false, webviewTag: false, webSecurity: true } })
+      const backdrop = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, webviewTag: false, webSecurity: true } })
+      backdrop.setBackgroundColor('#00000000')
+      backdrop.setBorderRadius(15)
+      backdrop.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+      backdrop.webContents.on('will-navigate', (event) => event.preventDefault())
+      toolbar.setBorderRadius(0)
+      toolbar.setBackgroundColor('#00000000')
+      toolbar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+      toolbar.webContents.on('will-navigate', (event) => event.preventDefault())
+      toolbar.webContents.on('before-input-event', (event, input) => { if (input.type === 'keyDown' && input.key === 'Escape') { event.preventDefault(); closePeek(peekId, true) } })
+      view.setBorderRadius(15)
+      view.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#292b29' : '#fbfaf8')
+      view.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+      view.webContents.on('will-navigate', (event, value) => { if (!isWebURL(value)) event.preventDefault() })
+      view.webContents.on('will-redirect', (event, value) => { if (!isWebURL(value)) event.preventDefault() })
+      view.webContents.on('will-frame-navigate', (event) => { if (!event.isMainFrame && !isWebURL(event.url) && event.url !== 'about:blank' && event.url !== 'about:srcdoc' && !/^(?:blob:|data:)/i.test(event.url)) event.preventDefault() })
+      view.webContents.on('before-input-event', (event, input) => { if (input.type === 'keyDown' && input.key === 'Escape') { event.preventDefault(); closePeek(peekId, true) } })
+      const sendHost = (value: string): void => { if (toolbar.webContents.isDestroyed()) return; let host = ''; try { host = new URL(value).hostname } catch { /* blank or invalid URL */ } toolbar.webContents.send(PEEK_HOST_CHANNEL, host) }
+      toolbar.webContents.on('did-finish-load', () => sendHost(view.webContents.getURL() || url))
+      view.webContents.on('did-navigate', (_event, value) => sendHost(value))
+      view.webContents.on('did-navigate-in-page', (_event, value, main) => { if (main) sendHost(value) })
+      view.webContents.once('destroyed', () => { if (peeks.get(peekId)?.page === view) closePeek(peekId) })
+      toolbar.webContents.once('destroyed', () => { if (peeks.get(peekId)?.toolbar === toolbar) closePeek(peekId) })
+      backdrop.webContents.once('destroyed', () => { if (peeks.get(peekId)?.backdrop === backdrop) closePeek(peekId) })
+      for (const id of peeks.keys()) closePeek(id)
+      peeks.set(peekId, { page: view, toolbar, backdrop }); window.contentView.addChildView(backdrop); window.contentView.addChildView(view); window.contentView.addChildView(toolbar); layout()
+      void backdrop.webContents.loadURL(`${rendererURL}#peek-backdrop`).catch(() => { if (peeks.get(peekId)?.backdrop === backdrop) closePeek(peekId, true) })
+      void toolbar.webContents.loadURL(`${rendererURL}#peek-toolbar`).catch(() => { if (peeks.get(peekId)?.toolbar === toolbar) closePeek(peekId, true) })
+      view.webContents.focus()
+      void view.webContents.loadURL(url).catch(() => {})
+      return true
+  }
+  const peekLink = (event: Electron.IpcMainEvent, input: unknown): void => {
+    event.returnValue = false
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return
+    const { url, alt } = input as Record<string, unknown>
+    if (profileId !== activeProfileId || typeof url !== 'string' || !isWebURL(url) || typeof alt !== 'boolean' || event.senderFrame !== event.sender.mainFrame) return
+    const entry = [...tabs.entries()].find(([, tab]) => tab.view.webContents === event.sender && tab.workspaceId === activeWorkspaceId)
+    if (!entry || !shouldPeekLink(profiles.peekMode(profileId), alt, event.sender.getURL(), url)) return
+    const visible = splitTree ? splitTabIds(splitTree) : activeId ? [activeId] : []
+    if (!visible.includes(entry[0])) return
+    const sourceURL = event.sender.getURL(); const source = event.sender
+    peekNavigation.arm(entry[0], url)
+    event.returnValue = true
+    setImmediate(() => {
+      if (window.isDestroyed() || source.isDestroyed() || source.getURL() !== sourceURL || tabs.get(entry[0])?.view.webContents !== source) return
+      try { openPeek(entry[0], url) } catch (error) { console.error('Unable to open Peek:', error) }
+    })
+  }
+  ipcMain.on('idle:peek-link', peekLink)
   const command = (event: Electron.IpcMainEvent, value: unknown): void => {
+    const toolbarEntry = [...peeks.entries()].find(([, pair]) => pair.toolbar.webContents === event.sender)
+    if (toolbarEntry) {
+      const [id, pair] = toolbarEntry
+      if (profileId !== activeProfileId || event.senderFrame !== event.sender.mainFrame || event.senderFrame?.url !== `${rendererURL}#peek-toolbar` || !isTabCommand(value)) return
+      if (value.type === 'peek-close') closePeek(id, true)
+      if (value.type === 'peek-back' && pair.page.webContents.navigationHistory.canGoBack()) pair.page.webContents.navigationHistory.goBack()
+      if (value.type === 'peek-expand') {
+        const source = tabs.get(id)
+        const url = pair.page.webContents.getURL()
+        if (!source || source.workspaceId !== activeWorkspaceId || source.view.webContents.isDestroyed() || !isWebURL(url)) return
+        peekNavigation.clear(id)
+        source.loaded = true
+        closePeek(id, true)
+        void source.view.webContents.loadURL(url).catch((error: unknown) => console.error('Unable to open Peek in current tab:', error))
+      }
+      return
+    }
     if (!trusted(event) || !isTabCommand(value)) return
     let cmd = value
+    if (cmd.type === 'peek-close') { closePeek(cmd.id, true); return }
+    if (cmd.type === 'peek-open') { openPeek(cmd.id, cmd.url); return }
+    if (cmd.type === 'pane-switcher') {
+      const visible = splitTree ? splitTabIds(splitTree) : activeId ? [activeId] : []
+      const tab = tabs.get(cmd.id); const [width = 0, height = 0] = window.getContentSize()
+      if (!tab || !visible.includes(cmd.id) || cmd.x > width || cmd.y > height) return
+      activate(cmd.id)
+      const items: Electron.MenuItemConstructorOptions[] = cmd.kind === 'workspace'
+        ? store.workspaces().map((workspace) => ({ label: workspace.name, type: 'radio', checked: workspace.id === activeWorkspaceId, click: () => switchWorkspace(workspace.id) }))
+        : [...tabs.values()].filter((item) => item.state.groupId && item.state.groupId === tab.state.groupId).map((item) => ({ label: item.state.title || item.state.url || 'New tab', type: 'radio', checked: item.state.id === activeId, click: () => activate(item.state.id, true) }))
+      if (items.length) Menu.buildFromTemplate(items).popup({ window, x: cmd.x, y: cmd.y })
+      return
+    }
     if (cmd.type === 'pane-focus') {
       const visible = splitTree ? splitTabIds(splitTree) : activeId ? [activeId] : []
       if (visible.includes(cmd.id)) activate(cmd.id)
@@ -485,7 +607,7 @@ function createWindow(): void {
       return
     }
     if (cmd.type === 'group-create' && typeof cmd.name === 'string') { const name = cmd.name.trim().slice(0, 80); if (name) { store.createGroup(activeWorkspaceId, randomUUID(), name, cmd.color || '#55766b'); publish() } return }
-    if (cmd.type === 'group-rename' || cmd.type === 'group-color' || cmd.type === 'group-toggle' || cmd.type === 'group-delete') { if (!store.groups(activeWorkspaceId).some((group) => group.id === cmd.id)) return; const action = cmd.type === 'group-rename' ? 'rename' : cmd.type === 'group-color' ? 'color' : cmd.type === 'group-toggle' ? 'toggle' : 'delete'; store.updateGroup(cmd.id, action, 'name' in cmd ? cmd.name.trim().slice(0, 80) : 'color' in cmd ? cmd.color : ''); publish(); return }
+    if (cmd.type === 'group-rename' || cmd.type === 'group-color' || cmd.type === 'group-toggle' || cmd.type === 'group-delete') { if (!store.groups(activeWorkspaceId).some((group) => group.id === cmd.id)) return; const action = cmd.type === 'group-rename' ? 'rename' : cmd.type === 'group-color' ? 'color' : cmd.type === 'group-toggle' ? 'toggle' : 'delete'; store.updateGroup(cmd.id, action, 'name' in cmd ? cmd.name.trim().slice(0, 80) : 'color' in cmd ? cmd.color : ''); if (cmd.type === 'group-delete') for (const tab of tabs.values()) if (tab.state.groupId === cmd.id) tab.state.groupId = null; publish(); return }
     if (cmd.type === 'group-add' && typeof cmd.tabId === 'string' && (cmd.groupId === null || typeof cmd.groupId === 'string')) { const tab = tabs.get(cmd.tabId); if (!tab || tab.state.pinned) return; if (cmd.groupId && !store.groups(activeWorkspaceId).some((group) => group.id === cmd.groupId)) return; store.setTabGroup(cmd.tabId, cmd.groupId, activeWorkspaceId); tab.state.groupId = cmd.groupId; publish(); return }
     if (cmd.type === 'move-to-workspace') { moveToWorkspace(cmd.id, cmd.sourceWorkspaceId, cmd.destinationWorkspaceId); return }
     if (cmd.type === 'history-open' && typeof cmd.url === 'string' && typeof cmd.workspaceId === 'string') {
@@ -562,6 +684,7 @@ function createWindow(): void {
     if (cmd.type === 'workspace-rename' && typeof cmd.id === 'string' && typeof cmd.name === 'string') {
       const name = cmd.name.trim().slice(0, 80); if (name && store.workspaces().some((workspace) => workspace.id === cmd.id)) { store.renameWorkspace(cmd.id, name); publish() } return
     }
+    if (cmd.type === 'workspace-emoji' && typeof cmd.id === 'string' && typeof cmd.emoji === 'string') { const emoji = cmd.emoji.trim().slice(0, 8); if (emoji && store.workspaces().some((workspace) => workspace.id === cmd.id)) { store.setWorkspaceEmoji(cmd.id, emoji); publish() } return }
     if (cmd.type === 'workspace-switch' && typeof cmd.id === 'string') { switchWorkspace(cmd.id); return }
     if (cmd.type === 'workspace-delete' && typeof cmd.id === 'string') {
       const id = cmd.id; const workspaces = store.workspaces(); const workspace = workspaces.find((item) => item.id === id)
@@ -642,6 +765,10 @@ function createWindow(): void {
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
     { label: 'File', submenu: [menuItem('New Tab', 'CommandOrControl+T', 'new-tab'), menuItem('Close Tab', 'CommandOrControl+W', 'close-tab'), menuItem('Reopen Closed Tab', 'CommandOrControl+Shift+T', 'reopen'), ...(process.platform === 'darwin' ? [] : [{ role: 'quit' as const }])] },
     { role: 'editMenu' },
+    { label: 'Settings', submenu: [{ label: 'Peek', submenu: [
+      { label: 'Automatic', type: 'radio', checked: profiles.peekMode(profileId) === 'automatic', click: () => profiles.setPeekMode(profileId, 'automatic') },
+      { label: 'Manual (Alt/Option-click)', type: 'radio', checked: profiles.peekMode(profileId) === 'manual', click: () => profiles.setPeekMode(profileId, 'manual') },
+    ] }] },
     { label: 'View', submenu: [menuItem('Show or Hide Sidebar', 'CommandOrControl+Shift+S', 'sidebar'), menuItem('Search Saved Pages', 'CommandOrControl+Shift+F', 'saved-search'), { label: 'Downloads', click: () => performShortcut('downloads') }, { label: 'Save Tab for Later', click: () => { if (activeId) saveLater(activeId) } }, menuItem('Find in Page', 'CommandOrControl+F', 'find'), menuItem('Reload', 'CommandOrControl+R', 'reload'), { type: 'separator' }, menuItem('Zoom In', 'CommandOrControl+Plus', 'zoom-in'), menuItem('Zoom Out', 'CommandOrControl+-', 'zoom-out'), menuItem('Actual Size', 'CommandOrControl+0', 'zoom-reset')] },
     { label: 'Navigate', submenu: [menuItem('Address Bar', 'CommandOrControl+L', 'address'), menuItem('Back', 'CommandOrControl+[', 'back'), menuItem('Forward', 'CommandOrControl+]', 'forward'), { type: 'separator' }, menuItem('Next Tab', 'Control+Tab', 'next-tab'), menuItem('Previous Tab', 'Control+Shift+Tab', 'previous-tab'), ...(process.platform === 'darwin' ? [menuItem('Next Tab (Alternative)', 'Command+Shift+]', 'next-tab'), menuItem('Previous Tab (Alternative)', 'Command+Shift+[', 'previous-tab')] : []), ...Array.from({ length: 9 }, (_, i) => menuItem(i === 8 ? 'Last Tab' : `Tab ${i + 1}`, `CommandOrControl+${i + 1}`, `tab-${i + 1}`))] },
     { role: 'windowMenu' },
@@ -653,6 +780,7 @@ function createWindow(): void {
   ipcMain.on(TAB_COMMAND_CHANNEL, command)
   window.on('resize', layout)
   window.on('closed', () => {
+    for (const id of peeks.keys()) closePeek(id)
     nativeTheme.removeListener('updated', updateMaterial)
     nativeTheme.removeListener('updated', updatePageBackings)
     if (splitDragTimer) clearTimeout(splitDragTimer)
@@ -660,6 +788,7 @@ function createWindow(): void {
     pageSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
     ipcMain.removeListener(VIEW_BOUNDS_CHANNEL, updateBounds)
     ipcMain.removeListener(TAB_COMMAND_CHANNEL, command)
+    ipcMain.removeListener('idle:peek-link', peekLink)
     for (const tab of tabs.values()) if (!tab.view.webContents.isDestroyed()) tab.view.webContents.close()
     tabs.clear()
     for (const workspace of workspaceCache.values()) for (const tab of workspace.tabs.values()) if (!tab.view.webContents.isDestroyed()) tab.view.webContents.close()

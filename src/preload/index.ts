@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, type BrowserState, type IdleAPI } from '../shared/ipc'
+import { APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, PEEK_HOST_CHANNEL, type BrowserState, type IdleAPI } from '../shared/ipc'
 const api: IdleAPI = {
+  onPeekHost: (callback) => { const listener = (_event: Electron.IpcRendererEvent, hostname: string) => callback(hostname); ipcRenderer.on(PEEK_HOST_CHANNEL, listener); return () => ipcRenderer.removeListener(PEEK_HOST_CHANNEL, listener) },
   setViewBounds: (bounds) => ipcRenderer.send(VIEW_BOUNDS_CHANNEL, bounds),
   getAppInfo: () => ipcRenderer.invoke(APP_INFO_CHANNEL),
   tabCommand: (command) => ipcRenderer.send(TAB_COMMAND_CHANNEL, command),

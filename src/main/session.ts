@@ -27,7 +27,7 @@ export class SessionStore {
       const check = this.db.prepare('PRAGMA quick_check').get()
       if (!check || Object.values(check)[0] !== 'ok') throw new Error('SQLite integrity check failed')
       const version = Number(this.db.prepare('PRAGMA user_version').get()?.user_version)
-      if (version > 10) throw new Error('Session database is from a newer version of Idle')
+      if (version > 11) throw new Error('Session database is from a newer version of Idle')
       if (version === 0) {
         this.db.exec(`BEGIN IMMEDIATE;
           CREATE TABLE windows (id TEXT PRIMARY KEY, active_tab TEXT);
@@ -86,6 +86,7 @@ export class SessionStore {
           ALTER TABLE tabs ADD COLUMN theme_color TEXT NOT NULL DEFAULT '';
           PRAGMA user_version = 10; COMMIT;`)
       }
+      if (version < 11) { this.db.exec(`BEGIN IMMEDIATE; ALTER TABLE workspaces ADD COLUMN emoji TEXT NOT NULL DEFAULT '🌐'; PRAGMA user_version = 11; COMMIT;`) }
       this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;')
     } catch (error) { this.db.close(); throw error }
   }
@@ -222,6 +223,7 @@ export class SessionStore {
   workspaces(): { id: string; name: string }[] {
     return this.db.prepare('SELECT id, name FROM workspaces ORDER BY position').all().filter((row) => typeof row.id === 'string' && typeof row.name === 'string' && row.id.length > 0 && row.name.trim().length > 0).map((row) => ({ id: row.id as string, name: row.name as string }))
   }
+  workspaceEmoji(id: string): string { const row = this.db.prepare('SELECT emoji FROM workspaces WHERE id = ?').get(id); return typeof row?.emoji === 'string' && row.emoji ? row.emoji : '🌐' }
   activeWorkspace(windowId: string): string {
     const workspaces = this.workspaces()
     const selection = this.db.prepare('SELECT workspace_id FROM workspace_selection WHERE window_id = ?').get(windowId)?.workspace_id
@@ -231,6 +233,7 @@ export class SessionStore {
     this.db.prepare('INSERT INTO workspaces (id, name, position) VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM workspaces))').run(id, name)
   }
   renameWorkspace(id: string, name: string): void { this.db.prepare('UPDATE workspaces SET name = ? WHERE id = ?').run(name, id) }
+  setWorkspaceEmoji(id: string, emoji: string): void { this.db.prepare('UPDATE workspaces SET emoji = ? WHERE id = ?').run(emoji, id) }
   selectWorkspace(windowId: string, id: string): void {
     this.db.prepare('INSERT INTO workspace_selection VALUES (?, ?) ON CONFLICT(window_id) DO UPDATE SET workspace_id = excluded.workspace_id').run(windowId, id)
   }

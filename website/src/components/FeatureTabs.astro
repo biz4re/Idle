@@ -1,0 +1,68 @@
+---
+import { Image } from 'astro:assets';
+import authenticScreenshot from '../assets/quiet-glass-before.jpg';
+import GhostIcon from './GhostIcon.astro';
+---
+
+<section id="tabs" class="py-24 sm:py-36 max-w-7xl mx-auto px-6 sm:px-10 border-t border-charcoal-border-subtle">
+  <!-- Section Title -->
+  <div class="max-w-3xl mb-16 space-y-4">
+    <span class="text-xs font-semibold uppercase tracking-widest text-idle-green">
+      01 / Vertical Tabs & Groups
+    </span>
+    <h2 class="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-charcoal leading-[1.05]">
+      Too many tabs. <br/>
+      <span class="font-serif italic font-normal text-idle-green">Too little dignity.</span>
+    </h2>
+    <div class="space-y-4 text-lg sm:text-xl text-charcoal-muted leading-relaxed font-normal pt-2">
+      <p>Remember when five tabs felt like a lot? Neither do we.</p>
+      <p>Traditional horizontal tabs get smaller with every new page, until you're left guessing which tiny icon is which.</p>
+      <p>Idle stacks them neatly down the side. Full titles, tidy groups, and everything right where you expect it.</p>
+    </div>
+  </div>
+
+  <!-- Oversized, Visually Focused Screenshot: Magnified on Sidebar Rail -->
+  <div class="relative rounded-3xl overflow-hidden shadow-2xl bg-[#202120] border border-charcoal/10 aspect-16/10 max-h-[680px]">
+    <Image
+      src={authenticScreenshot}
+      alt="Real Idle browser screenshot showcasing vertical tabs and organized groups"
+      width={1186}
+      height={793}
+      loading="lazy"
+      class="w-full h-full object-cover object-left block"
+    />
+  </div>
+
+  <!-- Three takeaways -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 mt-12 pt-8">
+    <div class="space-y-2">
+      <h3 class="text-xl font-bold text-charcoal">Actually readable</h3>
+      <p class="text-sm text-charcoal-muted leading-relaxed">
+        See what you've opened without playing favicon roulette. Your tabs stay visible and easy to find.
+      </p>
+    </div>
+    <div class="space-y-2">
+      <h3 class="text-xl font-bold text-charcoal">Organised chaos</h3>
+      <p class="text-sm text-charcoal-muted leading-relaxed">
+        Group related tabs, give them a colour, and collapse the whole lot when you need some breathing room.
+      </p>
+    </div>
+    <div class="space-y-2">
+      <h3 class="text-xl font-bold text-charcoal">Move things around</h3>
+      <p class="text-sm text-charcoal-muted leading-relaxed">
+        Drag, drop, pin, and rearrange your tabs however you like. It's your browser, after all.
+      </p>
+    </div>
+  </div>
+
+  <!-- Ghost quote callout -->
+  <div class="mt-12 p-4 sm:p-5 rounded-2xl bg-warm-canvas border border-charcoal-border flex items-center gap-3.5 max-w-xl">
+    <div class="w-8 h-8 rounded-full bg-idle-green-soft text-idle-green flex items-center justify-center shrink-0">
+      <GhostIcon class="w-4 h-4 text-idle-green" />
+    </div>
+    <p class="text-sm text-charcoal">
+      <span class="font-semibold">Idle the ghost:</span>
+      <span class="font-serif italic text-charcoal-muted ml-1">“I’ve seen your tab count. We need to talk.”</span>
+    </p>
+  </div>
+</section>
