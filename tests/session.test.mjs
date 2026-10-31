@@ -11,9 +11,47 @@ import { DatabaseSync } from 'node:sqlite'
 import { searchSavedPages } from '../src/shared/search.ts'
 import { ProfileRegistry } from '../src/main/profiles.ts'
 import { SessionStore } from '../src/main/session.ts'
+import { sessionSaveKey } from '../src/main/session-dedup.ts'
 import { peekBounds } from '../src/shared/peek-layout.ts'
 import { PeekNavigationGuard } from '../src/main/peek-navigation.ts'
 import { popupRoute } from '../src/main/popup-policy.ts'
+
+test('Workspace order persists and rejects invalid moves', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'idle-workspace-order-'))
+  try {
+    const path = join(dir, 'session.sqlite'); let store = new SessionStore(path)
+    store.createWorkspace('second', 'Second'); store.createWorkspace('third', 'Third')
+    store.setWorkspaceEmoji('third', '🌱'); store.moveWorkspace('third', 'up'); store.moveWorkspace('missing', 'up')
+    assert.equal(isTabCommand({ type: 'workspace-move', id: 'third', direction: 'up' }), true)
+    assert.equal(isTabCommand({ type: 'workspace-move', id: 'third', direction: 'sideways' }), false)
+    store.close(); store = new SessionStore(path)
+    assert.deepEqual(store.workspaceSummaries().map(({ id }) => id), ['main', 'third', 'second'])
+    assert.equal(store.workspaceSummaries().find(({ id }) => id === 'third')?.emoji, '🌱')
+    store.close()
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('group membership and Workspace summaries retain order and isolation', () => {
+  const store = new SessionStore(':memory:')
+  try {
+    store.createWorkspace('other', 'Other')
+    store.setWorkspaceEmoji('other', '🌱')
+    store.createGroup('main', 'first', 'First', '#55766b')
+    store.createGroup('main', 'second', 'Second', '#55766b')
+    store.createGroup('other', 'third', 'Third', '#55766b')
+    store.save('main', [
+      { id: 'a', url: 'https://example.com/a', pinned: false, groupId: 'second' },
+      { id: 'b', url: 'https://example.com/b', pinned: false, groupId: 'first' },
+      { id: 'c', url: 'https://example.com/c', pinned: false, groupId: 'second' },
+      { id: 'd', url: 'https://example.com/d', pinned: false }
+    ], 'a', [])
+    store.save('other', [{ id: 'e', url: 'https://example.com/e', pinned: false, groupId: 'third' }], 'e', [])
+    assert.deepEqual(store.groups('main').map(({ id, tabIds }) => ({ id, tabIds })), [{ id: 'first', tabIds: ['b'] }, { id: 'second', tabIds: ['a', 'c'] }])
+    assert.deepEqual(store.groups('other').map(({ tabIds }) => tabIds), [['e']])
+    assert.equal(store.workspaceSummaries().find(({ id }) => id === 'other')?.emoji, '🌱')
+    assert.deepEqual(store.workspaceSummaries().map(({ id, name }) => ({ id, name })), store.workspaces())
+  } finally { store.close() }
+})
 
 test('popup routing keeps tab gestures separate from opener-dependent windows', () => {
   assert.equal(popupRoute('https://example.com/', 'foreground-tab', false), 'tab')
@@ -87,6 +125,15 @@ test('Peek commands accept only bounded web addresses and valid source IDs', () 
 })
 
 const tab = (id, url, pinned = false) => ({ id, url, pinned, title: id, favicon: '', loading: false, canGoBack: false, canGoForward: false, error: '' })
+
+test('session dedup ignores transient UI metadata but detects persisted changes', () => {
+  const original = tab('a', 'https://example.com/')
+  const key = sessionSaveKey([original], 'a', [], null)
+  assert.equal(sessionSaveKey([{ ...original, loading: true, title: 'Updated', canGoBack: true }], 'a', [], null), key)
+  assert.notEqual(sessionSaveKey([{ ...original, url: 'https://example.org/' }], 'a', [], null), key)
+  assert.notEqual(sessionSaveKey([{ ...original, favicon: 'https://example.com/icon.png' }], 'a', [], null), key)
+  assert.notEqual(sessionSaveKey([original], null, [], null), key)
+})
 
 test('migrates the old session and restores separate workspaces after reopening', () => {
   const dir = mkdtempSync(join(tmpdir(), 'wander-session-'))

@@ -48,9 +48,11 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .workspace-edit input, .later-note-form textarea { width:100%; padding:7px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--field); color:var(--text); }
 .workspace-edit div { display:flex; gap:14px; }
 .sidebar-heading { display:flex; align-items:center; justify-content:space-between; min-height:34px; padding:5px 7px 2px; color:var(--muted); font-size:10px; font-weight:650; letter-spacing:.055em; text-transform:uppercase; }
+.sidebar-heading-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sidebar-heading > span:last-child { flex-shrink:0; }
 .sidebar-empty { padding:5px 8px; color:var(--muted); font-size:11px; line-height:1.4; } .favourite-empty { opacity:.8; }
-.workspace-dock { flex:none; margin-top:auto; padding:8px 2px 0; border-top:1px solid var(--border); }
-.workspace-dock-scroll { display:flex; gap:5px; overflow-x:auto; padding:2px 2px 3px; scrollbar-width:thin; }
+.workspace-dock { display:flex; align-items:center; flex:none; min-width:0; padding:8px 2px 2px; }
+.workspace-dock-scroll { flex:1; min-width:0; display:flex; gap:5px; overflow-x:auto; padding:2px 2px 3px; scrollbar-width:thin; }
 .workspace-dock-item, .workspace-dock-add { display:grid; place-items:center; width:38px; height:38px; flex:none; border-radius:9px; color:var(--text); font-size:19px; }
 .workspace-dock-item:hover, .workspace-dock-item:focus-visible, .workspace-dock-add:hover, .workspace-dock-add:focus-visible { background:var(--hover); outline:none; }
 .workspace-dock-item.active { background:var(--hover); box-shadow:none; }
@@ -71,12 +73,15 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .grouped-tab { margin-left:10px; }
 .tab { position:relative; display:flex; align-items:center; min-width:0; min-height:36px; margin:2px 0; border:1px solid transparent; border-radius:9px; cursor:grab; transition:background-color var(--motion), border-color var(--motion); }
 .tab:hover, .tab:focus-within, .tab.active { background:var(--hover); } .tab.active { border-color:transparent; box-shadow:none; }
-.tab-select { display:flex; flex:1; min-width:0; align-items:center; gap:9px; padding:8px 4px 8px 9px; text-align:left; font-size:12px; }
+.tab-select { display:flex; flex:1; min-width:0; align-items:center; gap:9px; padding:8px 9px; text-align:left; font-size:12px; transition:padding-right var(--motion); }
 .tab-select svg, .favicon, .spinner { width:15px; height:15px; flex:none; color:var(--muted); } .tab-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .icon-button { display:inline-flex; flex:none; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--radius-sm); color:var(--muted); -webkit-app-region:no-drag; transition:background-color var(--motion),color var(--motion); }
-.icon-button:hover:not(:disabled) { background:var(--hover); color:var(--text); } .tab-action, .close-tab { width:27px; height:30px; opacity:0; transition:opacity var(--motion),background-color var(--motion); }
+.icon-button:hover:not(:disabled) { background:var(--hover); color:var(--text); } .tab-action, .close-tab { position:absolute; top:50%; transform:translateY(-50%); width:27px; height:30px; opacity:0; pointer-events:none; transition:opacity var(--motion),background-color var(--motion); }
+.tab-action { right:30px; } .close-tab { right:2px; }
+.tab:hover .tab-select, .tab:focus-within .tab-select { padding-right:60px; }
 .tab:hover .tab-action, .tab:focus-within .tab-action, .tab:hover .close-tab, .tab:focus-within .close-tab { opacity:1; }
-.tab:not(:hover):not(:focus-within) .close-tab { pointer-events:none; } .close-tab { margin-right:3px; } .close-tab svg { width:14px; height:14px; }
+.tab:hover .tab-action, .tab:focus-within .tab-action, .tab:hover .close-tab, .tab:focus-within .close-tab { pointer-events:auto; }
+.close-tab svg { width:14px; height:14px; }
 .tab.dragging { opacity:.4; cursor:grabbing; } .tab.drop-before::before, .tab.drop-after::after { content:''; position:absolute; left:5px; right:5px; height:2px; border-radius:2px; background:var(--accent); z-index:1; pointer-events:none; }
 .tab.drop-before::before { top:-3px; } .tab.drop-after::after { bottom:-3px; }
 .workspace-drop-list { display:flex; flex-direction:column; gap:3px; margin:6px 0; font-size:11px; color:var(--muted); }
@@ -193,7 +198,7 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .split-pane-frame { position:relative; }
 .canvas-frame:not(.split-canvas) .split-pane-frame { border:0; border-radius:15px; background:transparent; box-shadow:none; }
 .split-pane-frame { container-type:inline-size; }
-.pane-toolbar { position:absolute; top:0; left:0; right:0; height:44px; display:flex; align-items:center; gap:2px; padding:4px; pointer-events:auto; border-radius:15px 15px 0 0; background:var(--toolbar); }
+.pane-toolbar { position:absolute; top:0; left:0; right:0; height:44px; display:flex; align-items:center; gap:2px; padding:4px; pointer-events:auto; border-radius:15px 15px 0 0; background:var(--canvas); }
 .pane-toolbar .icon-button { width:36px; height:36px; flex:none; }
 .pane-breadcrumbs { display:flex; align-items:center; flex:1; min-width:0; overflow:hidden; font-size:14px; }
 .pane-breadcrumbs > span { display:flex; align-items:center; min-width:0; color:var(--muted); }
@@ -270,7 +275,7 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .tab-group-card.contains-active { border-color:transparent; box-shadow:none; }
 .tab-group-card { border-color:transparent; }
 .active-frame { border-color:transparent !important; box-shadow:none !important; }
-.pane-toolbar.pane-active { color:var(--text); background:var(--active); }
+.pane-toolbar.pane-active { color:var(--text); }
 .address-form:focus-within { border-color:var(--border); box-shadow:none; background:var(--active); }
 .address-form input:focus-visible, .pane-inline-address:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
 .pane-inline-address:focus-within { border-color:var(--border); box-shadow:none; background:var(--active); }

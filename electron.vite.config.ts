@@ -8,6 +8,7 @@ export default defineConfig({
   preload: { plugins: [externalizeDepsPlugin({ exclude: ['tldts', 'tldts-core'] })], build: { rollupOptions: { input: { index: resolve('src/preload/index.ts'), page: resolve('src/preload/page.ts') } } } },
   renderer: {
     plugins: [react(), tailwindcss()],
+    build: { minify: true },
     server: { host: '127.0.0.1' },
   },
 })

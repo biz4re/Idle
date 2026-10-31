@@ -17,7 +17,7 @@ const baseUrl = import.meta.env.BASE_URL.endsWith('/')
 
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site || 'https://idlebrowser.com');
 const ogImageUrl = new URL(`${baseUrl}og-image.svg`, Astro.site || 'https://idlebrowser.com');
-const faviconUrl = `${baseUrl}favicon.svg`;
+const faviconUrl = `${baseUrl}favicon.png`;
 ---
 
 <!doctype html>
@@ -34,7 +34,7 @@ const faviconUrl = `${baseUrl}favicon.svg`;
     <link rel="canonical" href={canonicalUrl} />
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href={faviconUrl} />
+    <link rel="icon" type="image/png" href={faviconUrl} />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />

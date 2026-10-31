@@ -6,6 +6,7 @@
   "description": "An open-source, macOS-first Chromium browser.",
   "license": "Apache-2.0",
   "main": "out/main/index.js",
+  "files": ["out/", "resources/"],
   "packageManager": "pnpm@10.34.9",
   "engines": {
     "node": "^22.12.0 || >=24.0.0"
@@ -16,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --experimental-sqlite --test tests/session.test.mjs",
     "build": "tsc --noEmit && electron-vite build",
+    "pack:check": "npm pack --dry-run --ignore-scripts",
     "start": "electron-vite preview"
   },
   "dependencies": {

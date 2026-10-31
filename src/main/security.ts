@@ -41,7 +41,7 @@ export function isTabCommand(value: unknown): value is TabCommand {
     case 'group-toggle': case 'group-delete': return id(cmd.id)
     case 'group-add': return id(cmd.tabId) && (cmd.groupId === null || id(cmd.groupId))
     case 'favourite-toggle': return cmd.scope === 'workspace' || cmd.scope === 'global'
-    case 'move': case 'favourite-move': return id(cmd.id) && (cmd.direction === 'up' || cmd.direction === 'down')
+    case 'move': case 'favourite-move': case 'workspace-move': return id(cmd.id) && (cmd.direction === 'up' || cmd.direction === 'down')
     default: return false
   }
 }

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu, shell, systemPreferences, nativeTheme, type WebContents } from 'electron'
+import appIcon from '../../resources/icon.png?asset'
 import { join, basename } from 'node:path'
 import { release } from 'node:os'
 import { browserShortcut, type BrowserShortcut } from './shortcuts'
@@ -13,6 +14,7 @@ import { randomUUID } from 'node:crypto'
 import { unlink } from 'node:fs/promises'
 import { ProfileRegistry } from './profiles'
 import { SessionStore, type SavedTab } from './session'
+import { sessionSaveKey } from './session-dedup'
 import { pathToFileURL } from 'node:url'
 import { APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, PEEK_HOST_CHANNEL, type DownloadState, type TabState, type ViewBounds, type AppInfo } from '../shared/ipc'
 
@@ -44,6 +46,7 @@ function createWindow(): void {
   const solidColor = (): string => nativeTheme.shouldUseDarkColors ? '#202120' : '#f1f0ed'
   const window = new BrowserWindow({
     title: 'Idle',
+    icon: appIcon,
     width: 1200,
     height: 800,
     minWidth: 760,
@@ -101,6 +104,13 @@ function createWindow(): void {
   let findOpen = false
   let findText = ''
   let findRequest = 0
+  const savedSessionKeys = new Map<string, string>()
+  const saveSession = (workspaceId: string, states: TabState[], selected: string | null, recentlyClosed: SavedTab[], tree?: SplitTree | null): void => {
+    const key = sessionSaveKey(states, selected, recentlyClosed, tree)
+    if (savedSessionKeys.get(workspaceId) === key) return
+    store.save(workspaceId, states, selected, recentlyClosed, tree)
+    savedSessionKeys.set(workspaceId, key)
+  }
   const peeks = new Map<string, { page: WebContentsView; toolbar: WebContentsView; backdrop: WebContentsView }>()
   const peekNavigation = new PeekNavigationGuard()
   const closePeek = (id: string, focus = false): void => {
@@ -118,8 +128,10 @@ function createWindow(): void {
   const publish = (): void => {
     if (window.isDestroyed() || profileId !== activeProfileId) return
     const states = [...tabs.values()].map((tab) => tab.state)
-    if (!restoring && !suppressSave) { try { store.save(activeWorkspaceId, states, activeId, closed, splitTree) } catch (error) { console.error('Unable to save session:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } }
-    if (!window.isDestroyed()) window.webContents.send(TAB_STATE_CHANNEL, { splitTree, tabs: states, groups: store.groups(activeWorkspaceId), activeId, recentlyClosed: closed.length, workspaces: store.workspaces().map((workspace) => ({ ...workspace, emoji: store.workspaceEmoji(workspace.id) })), activeWorkspaceId, later: store.later(activeWorkspaceId), laterError, favourites: store.favourites(), searchLater: store.workspaces().flatMap((workspace) => store.later(workspace.id)), history: store.history(), downloads, storageWarning, profiles: profiles.list(), activeProfileId: profileId, sidebarWidth: profiles.sidebarWidth(), navigationError, announcement })
+    if (!restoring && !suppressSave) { try { saveSession(activeWorkspaceId, states, activeId, closed, splitTree) } catch (error) { console.error('Unable to save session:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } }
+    const workspaces = store.workspaceSummaries()
+    const later = store.later(activeWorkspaceId)
+    if (!window.isDestroyed()) window.webContents.send(TAB_STATE_CHANNEL, { splitTree, tabs: states, groups: store.groups(activeWorkspaceId), activeId, recentlyClosed: closed.length, workspaces, activeWorkspaceId, later, laterError, favourites: store.favourites(), searchLater: workspaces.flatMap((workspace) => workspace.id === activeWorkspaceId ? later : store.later(workspace.id)), history: store.history(), downloads, storageWarning, profiles: profiles.list(), activeProfileId: profileId, sidebarWidth: profiles.sidebarWidth(), navigationError, announcement })
     announcement = ''
   }
   const layout = (): void => {
@@ -185,17 +197,18 @@ function createWindow(): void {
     destination.set(id, ownedTab)
     const contents = view.webContents
     contents.once('destroyed', () => { peekNavigation.clear(id); closePeek(id) })
+    let savedNavigationKey = ''
     const refresh = (): void => {
       const ownerId = ownedTab.workspaceId
       const ownerTabs = ownerId === activeWorkspaceId ? tabs : workspaceCache.get(ownerId)?.tabs
       if (window.isDestroyed() || profileId !== activeProfileId || contents.isDestroyed() || ownerTabs?.get(id) !== ownedTab) return
       state.canGoBack = contents.navigationHistory.canGoBack(); state.canGoForward = contents.navigationHistory.canGoForward()
       const history = contents.navigationHistory; const entries = history.getAllEntries(); const index = history.getActiveIndex()
-      if (entries.length && entries.length <= 100 && entries[index]?.url === state.url) { try { store.saveNavigation(id, entries, index) } catch (error) { console.error('Unable to save tab navigation:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } }
+      if (entries.length && entries.length <= 100 && entries[index]?.url === state.url) { const key = JSON.stringify([entries, index]); if (key !== savedNavigationKey) { try { if (store.saveNavigation(id, entries, index)) savedNavigationKey = key } catch (error) { console.error('Unable to save tab navigation:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } } }
       if (ownerId === activeWorkspaceId) publish()
       else {
         const cached = workspaceCache.get(ownerId)
-        if (cached) { try { store.save(ownerId, [...ownerTabs.values()].map((tab) => tab.state), cached.activeId, cached.closed) } catch (error) { console.error('Unable to save session:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } }
+        if (cached) { try { saveSession(ownerId, [...ownerTabs.values()].map((tab) => tab.state), cached.activeId, cached.closed) } catch (error) { console.error('Unable to save session:', error); storageWarning = 'Session changes could not be saved. Check available disk space and restart Idle.' } }
       }
     }
     installShortcuts(contents)
@@ -316,6 +329,7 @@ function createWindow(): void {
   }
   const updateBounds = (event: Electron.IpcMainEvent, value: unknown): void => {
     if (!trusted(event) || !isViewBounds(value)) return
+    if (Math.round(bounds.x) === Math.round(value.x) && Math.round(bounds.y) === Math.round(value.y) && Math.round(bounds.width) === Math.round(value.width) && Math.round(bounds.height) === Math.round(value.height)) return
     bounds = value
     layout()
   }
@@ -685,6 +699,7 @@ function createWindow(): void {
       const name = cmd.name.trim().slice(0, 80); if (name && store.workspaces().some((workspace) => workspace.id === cmd.id)) { store.renameWorkspace(cmd.id, name); publish() } return
     }
     if (cmd.type === 'workspace-emoji' && typeof cmd.id === 'string' && typeof cmd.emoji === 'string') { const emoji = cmd.emoji.trim().slice(0, 8); if (emoji && store.workspaces().some((workspace) => workspace.id === cmd.id)) { store.setWorkspaceEmoji(cmd.id, emoji); publish() } return }
+    if (cmd.type === 'workspace-move') { store.moveWorkspace(cmd.id, cmd.direction); publish(); return }
     if (cmd.type === 'workspace-switch' && typeof cmd.id === 'string') { switchWorkspace(cmd.id); return }
     if (cmd.type === 'workspace-delete' && typeof cmd.id === 'string') {
       const id = cmd.id; const workspaces = store.workspaces(); const workspace = workspaces.find((item) => item.id === id)

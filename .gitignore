@@ -4,6 +4,16 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+.wander-*/
+.idle-*/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.pem
+*.key
+*.p12
+*.pfx
 .env
 .env.*
 !.env.example

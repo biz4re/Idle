@@ -119,7 +119,13 @@ export class SessionStore {
   }
   groups(workspaceId: string) {
     const rows = this.db.prepare('SELECT id, workspace_id, name, color, collapsed, position FROM tab_groups WHERE workspace_id = ? ORDER BY position').all(workspaceId)
-    return rows.filter((row) => typeof row.id === 'string' && typeof row.name === 'string' && typeof row.color === 'string').map((row) => ({ id: row.id as string, workspaceId, name: row.name as string, color: row.color as string, collapsed: row.collapsed === 1, position: Number(row.position), tabIds: this.db.prepare('SELECT id, group_id FROM tabs WHERE window_id = ? ORDER BY position').all(workspaceId).filter((tab) => tab.group_id === row.id).map((tab) => tab.id as string) }))
+    const tabIds = new Map<string, string[]>()
+    if (rows.length) for (const tab of this.db.prepare('SELECT id, group_id FROM tabs WHERE window_id = ? ORDER BY position').all(workspaceId)) {
+      if (typeof tab.id !== 'string' || typeof tab.group_id !== 'string') continue
+      const group = tabIds.get(tab.group_id) ?? []
+      group.push(tab.id); tabIds.set(tab.group_id, group)
+    }
+    return rows.filter((row) => typeof row.id === 'string' && typeof row.name === 'string' && typeof row.color === 'string').map((row) => ({ id: row.id as string, workspaceId, name: row.name as string, color: row.color as string, collapsed: row.collapsed === 1, position: Number(row.position), tabIds: tabIds.get(row.id as string) ?? [] }))
   }
   createGroup(workspaceId: string, id: string, name: string, color: string) { this.db.prepare('INSERT INTO tab_groups (id, workspace_id, name, color, position) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM tab_groups WHERE workspace_id = ?))').run(id, workspaceId, name, color, workspaceId) }
   updateGroup(id: string, action: 'rename' | 'color' | 'toggle' | 'delete', value = '') { if (action === 'rename') this.db.prepare('UPDATE tab_groups SET name = ? WHERE id = ?').run(value, id); else if (action === 'color') this.db.prepare('UPDATE tab_groups SET color = ? WHERE id = ?').run(value, id); else if (action === 'toggle') this.db.prepare('UPDATE tab_groups SET collapsed = 1 - collapsed WHERE id = ?').run(id); else { this.db.prepare('UPDATE tabs SET group_id = NULL WHERE group_id = ?').run(id); this.db.prepare('DELETE FROM tab_groups WHERE id = ?').run(id) } }
@@ -129,10 +135,10 @@ export class SessionStore {
     if (typeof row?.tree !== 'string' || row.tree.length > 10000) return null
     try { return restoreSplitTree(JSON.parse(row.tree) as unknown, tabIds) } catch { return null }
   }
-  saveNavigation(tabId: string, entries: { url: string; title: string }[], index: number): void {
-    if (!entries.length || entries.length > 100 || !Number.isInteger(index) || index < 0 || index >= entries.length) return
-    if (entries.some((entry) => !validHistoryURL(entry.url))) return
-    this.db.prepare('INSERT INTO tab_navigation (tab_id, entries, active_index) SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM tabs WHERE id = ?) ON CONFLICT(tab_id) DO UPDATE SET entries = excluded.entries, active_index = excluded.active_index').run(tabId, JSON.stringify(entries.map(({ url, title }) => ({ url, title: title.slice(0, 1000) }))), index, tabId)
+  saveNavigation(tabId: string, entries: { url: string; title: string }[], index: number): boolean {
+    if (!entries.length || entries.length > 100 || !Number.isInteger(index) || index < 0 || index >= entries.length) return false
+    if (entries.some((entry) => !validHistoryURL(entry.url))) return false
+    return this.db.prepare('INSERT INTO tab_navigation (tab_id, entries, active_index) SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM tabs WHERE id = ?) ON CONFLICT(tab_id) DO UPDATE SET entries = excluded.entries, active_index = excluded.active_index').run(tabId, JSON.stringify(entries.map(({ url, title }) => ({ url, title: title.slice(0, 1000) }))), index, tabId).changes > 0
   }
   loadNavigation(tabId: string): { entries: { url: string; title: string }[]; index: number } | null {
     const row = this.db.prepare('SELECT entries, active_index FROM tab_navigation WHERE tab_id = ?').get(tabId)
@@ -223,7 +229,9 @@ export class SessionStore {
   workspaces(): { id: string; name: string }[] {
     return this.db.prepare('SELECT id, name FROM workspaces ORDER BY position').all().filter((row) => typeof row.id === 'string' && typeof row.name === 'string' && row.id.length > 0 && row.name.trim().length > 0).map((row) => ({ id: row.id as string, name: row.name as string }))
   }
-  workspaceEmoji(id: string): string { const row = this.db.prepare('SELECT emoji FROM workspaces WHERE id = ?').get(id); return typeof row?.emoji === 'string' && row.emoji ? row.emoji : '🌐' }
+  workspaceSummaries(): { id: string; name: string; emoji: string }[] {
+    return this.db.prepare('SELECT id, name, emoji FROM workspaces ORDER BY position').all().filter((row) => typeof row.id === 'string' && typeof row.name === 'string' && row.id.length > 0 && row.name.trim().length > 0).map((row) => ({ id: row.id as string, name: row.name as string, emoji: typeof row.emoji === 'string' && row.emoji ? row.emoji : '🌐' }))
+  }
   activeWorkspace(windowId: string): string {
     const workspaces = this.workspaces()
     const selection = this.db.prepare('SELECT workspace_id FROM workspace_selection WHERE window_id = ?').get(windowId)?.workspace_id
@@ -231,6 +239,14 @@ export class SessionStore {
   }
   createWorkspace(id: string, name: string): void {
     this.db.prepare('INSERT INTO workspaces (id, name, position) VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM workspaces))').run(id, name)
+  }
+  moveWorkspace(id: string, direction: 'up' | 'down'): void {
+    const workspaces = this.workspaces(); const index = workspaces.findIndex((workspace) => workspace.id === id)
+    const target = index + (direction === 'up' ? -1 : 1)
+    if (index < 0 || target < 0 || target >= workspaces.length) return
+    const current = workspaces[index]!; workspaces[index] = workspaces[target]!; workspaces[target] = current
+    this.db.exec('BEGIN IMMEDIATE')
+    try { const update = this.db.prepare('UPDATE workspaces SET position = ? WHERE id = ?'); workspaces.forEach((workspace, position) => update.run(position, workspace.id)); this.db.exec('COMMIT') } catch (error) { this.db.exec('ROLLBACK'); throw error }
   }
   renameWorkspace(id: string, name: string): void { this.db.prepare('UPDATE workspaces SET name = ? WHERE id = ?').run(name, id) }
   setWorkspaceEmoji(id: string, emoji: string): void { this.db.prepare('UPDATE workspaces SET emoji = ? WHERE id = ?').run(emoji, id) }
