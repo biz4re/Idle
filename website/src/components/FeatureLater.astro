@@ -1,0 +1,105 @@
+---
+import GhostIcon from './GhostIcon.astro';
+---
+
+<section id="later" class="py-28 sm:py-40 max-w-7xl mx-auto px-6 sm:px-10 border-t border-charcoal-border-subtle">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+    
+    <!-- Text Column -->
+    <div class="lg:col-span-6 space-y-6">
+      <span class="text-xs font-semibold uppercase tracking-widest text-idle-green">
+        04 / Reading List & Notes
+      </span>
+      <h2 class="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-charcoal leading-[1.05]">
+        You’ll read it later. <br/>
+        <span class="font-serif italic font-normal text-idle-green">Sure you will.</span>
+      </h2>
+      <div class="space-y-4 text-lg sm:text-xl text-charcoal-muted leading-relaxed font-normal pt-2">
+        <p>We’ve all been there.</p>
+        <p>An article about improving your sleep. A recipe that looks incredible. A 9,000-word investigation into something you didn’t know existed five minutes ago.</p>
+        <p>You leave them open because you’ll definitely come back.</p>
+        <p>Three weeks later, they’re still there.</p>
+        <p class="font-bold text-charcoal pt-1">
+          Meet Later. Your guilt-free shelf for interesting things.
+        </p>
+        <p class="text-base sm:text-lg">
+          Save a page, add a note, and close the tab. It’ll be waiting whenever you’re ready.
+        </p>
+      </div>
+
+      <!-- Sub-features -->
+      <div class="space-y-5 pt-4 border-t border-charcoal-border-subtle">
+        <div class="space-y-1">
+          <h3 class="text-lg font-bold text-charcoal">Save now. Read whenever.</h3>
+          <p class="text-sm text-charcoal-muted leading-relaxed">
+            One click sends interesting pages to Later. No more keeping tabs open out of guilt.
+          </p>
+        </div>
+
+        <div class="space-y-1">
+          <h3 class="text-lg font-bold text-charcoal">Notes for future you</h3>
+          <p class="text-sm text-charcoal-muted leading-relaxed">
+            Attach a little reminder about why you saved something. Because sometimes even you won't remember.
+          </p>
+        </div>
+
+        <div class="space-y-1">
+          <h3 class="text-lg font-bold text-charcoal">Find it in a flash</h3>
+          <p class="text-sm text-charcoal-muted leading-relaxed">
+            Instantly search saved links, titles, and notes. No digging through endless bookmarks.
+          </p>
+        </div>
+      </div>
+
+      <!-- Ghost Quote Callout -->
+      <div class="p-4 sm:p-5 rounded-2xl bg-warm-canvas border border-charcoal-border flex items-center gap-3.5">
+        <div class="w-8 h-8 rounded-full bg-idle-green-soft text-idle-green flex items-center justify-center shrink-0">
+          <GhostIcon class="w-4 h-4 text-idle-green" />
+        </div>
+        <p class="text-sm text-charcoal">
+          <span class="font-semibold">Idle the ghost:</span>
+          <span class="font-serif italic text-charcoal-muted ml-1">“I’ll keep it safe. No promises you’ll actually read it.”</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Editorial Visual Presentation: Real Later sidebar mock showing saved pages, personal notes, search -->
+    <div class="lg:col-span-6">
+      <div class="p-8 sm:p-12 rounded-3xl bg-warm-surface border border-charcoal-border shadow-sm space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-charcoal-border-subtle text-xs text-charcoal-muted">
+          <span class="flex items-center gap-2 font-medium text-charcoal">
+            <span class="text-idle-green">◷</span> Later — Reading Shelf
+          </span>
+          <span>Workspace: Personal</span>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-xl font-bold text-charcoal leading-snug">
+            The Sleep Architecture of Night Owls vs Early Birds
+          </h3>
+          
+          <!-- Note Box (Authentic Idle Feature) -->
+          <div class="p-4 rounded-2xl bg-warm-canvas/80 text-sm text-charcoal-muted leading-relaxed border-l-2 border-idle-green">
+            <p class="font-medium text-charcoal text-xs mb-1">Your note for future you:</p>
+            <p class="italic font-serif text-charcoal/90">“Saved at 1:45 AM while procrastinating sleep. Relevant chart on page 3 about melatonin rhythm shifts.”</p>
+          </div>
+
+          <div class="flex items-center gap-4 text-xs font-medium text-idle-green pt-2">
+            <span class="hover:underline cursor-pointer">Mark as read</span>
+            <span>·</span>
+            <span class="hover:underline cursor-pointer">Edit note</span>
+            <span>·</span>
+            <span class="text-charcoal-light hover:text-charcoal cursor-pointer">Remove</span>
+          </div>
+        </div>
+
+        <!-- Instant Search Indicator -->
+        <div class="pt-4 border-t border-charcoal-border-subtle flex items-center justify-between text-xs text-charcoal-muted">
+          <span>Search saved links, titles, and notes</span>
+          <kbd class="px-2 py-0.5 rounded-md bg-warm-canvas border border-charcoal-border text-[11px] font-mono font-medium text-charcoal">⌘⇧F</kbd>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

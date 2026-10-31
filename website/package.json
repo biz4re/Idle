@@ -1,0 +1,20 @@
+{
+  "name": "idle-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env ./node_modules/astro/astro.js dev",
+    "start": "node --env-file-if-exists=.env ./node_modules/astro/astro.js dev",
+    "build": "node --env-file-if-exists=.env ./node_modules/astro/astro.js check && node --env-file-if-exists=.env ./node_modules/astro/astro.js build",
+    "preview": "node --env-file-if-exists=.env ./node_modules/astro/astro.js preview",
+    "check": "node --env-file-if-exists=.env ./node_modules/astro/astro.js check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^5.18.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  }
+}
