@@ -1,4 +1,5 @@
 // @ts-check
+import process from 'node:process';
 import { defineConfig, passthroughImageService } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
