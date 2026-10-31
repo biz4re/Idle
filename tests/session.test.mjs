@@ -135,19 +135,21 @@ test('session dedup ignores transient UI metadata but detects persisted changes'
   assert.notEqual(sessionSaveKey([original], null, [], null), key)
 })
 
-test('migrates the old session and restores separate workspaces after reopening', () => {
+test('rejects an unsupported pre-release database without migration', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'idle-old-schema-'))
+  try {
+    const path = join(dir, 'session.sqlite'); const db = new DatabaseSync(path)
+    db.exec('PRAGMA user_version = 1'); db.close()
+    assert.throws(() => new SessionStore(path), /Unsupported pre-release session database/)
+  } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
+})
+
+test('creates a fresh session and restores separate workspaces after reopening', () => {
   const dir = mkdtempSync(join(tmpdir(), 'idle-session-'))
   try {
     const path = join(dir, 'session.sqlite')
-    const old = new DatabaseSync(path)
-    old.exec(`CREATE TABLE windows (id TEXT PRIMARY KEY, active_tab TEXT);
-      CREATE TABLE tabs (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
-      CREATE TABLE recently_closed (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
-      INSERT INTO windows VALUES ('main', 'a');
-      INSERT INTO tabs VALUES ('a', 'main', 0, 'https://example.com', 1);
-      PRAGMA user_version = 1;`)
-    old.close()
     let store = new SessionStore(path)
+    store.save('main', [tab('a', 'https://example.com', true)], 'a', [])
     assert.equal(store.activeWorkspace('main'), 'main')
     assert.deepEqual(store.workspaces(), [{ id: 'main', name: 'Default' }])
     assert.deepEqual(store.load('main')?.tabs, [{ id: 'a', url: 'https://example.com', pinned: true }])
@@ -335,18 +337,6 @@ test('fresh profile defaults are created once and retain their icons', () => {
   } finally { registry?.close(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 })
 
-test('existing profile registry migrates without changing profiles or selection', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'idle-existing-profiles-'))
-  let registry
-  try {
-    const path = join(dir, 'profiles.sqlite'); const db = new DatabaseSync(path)
-    db.exec("CREATE TABLE profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL); CREATE TABLE selection (id INTEGER PRIMARY KEY, profile_id TEXT NOT NULL); INSERT INTO profiles VALUES ('default', 'Original', 0), ('11111111-1111-4111-8111-111111111111', 'Work', 1); INSERT INTO selection VALUES (1, '11111111-1111-4111-8111-111111111111')")
-    db.close(); registry = new ProfileRegistry(path)
-    assert.deepEqual(registry.list().map(({ name, icon }) => [name, icon]), [['Original', 'personal'], ['Work', 'work']])
-    assert.equal(registry.active(), '11111111-1111-4111-8111-111111111111')
-  } finally { registry?.close(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
-})
-
 test('profiles retain independent sessions and active selection across restart', () => {
   const dir = mkdtempSync(join(tmpdir(), 'idle-profiles-'))
   try {
@@ -359,8 +349,8 @@ test('profiles retain independent sessions and active selection across restart',
     assert.equal(registry.active(), 'default')
     assert.equal(registry.sidebarWidth(), 232); registry.setSidebarWidth(318)
     assert.throws(() => registry.setSidebarWidth(10000))
-    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default', icon: 'personal' }])
-    const id = '11111111-1111-4111-8111-111111111111'; registry.create(id, 'Work'); registry.select(id)
+    assert.deepEqual(registry.list().map(({ name }) => name), ['Personal', 'Work'])
+    const id = registry.list()[1].id; registry.select(id)
     let work = new SessionStore(workPath)
     work.save('main', [tab('work', 'https://example.org')], 'work', [])
     assert.deepEqual(work.favourites(), []); work.close(); registry.close()
@@ -374,7 +364,7 @@ test('profiles retain independent sessions and active selection across restart',
     assert.deepEqual(work.favourites(), [])
     registry.rename(id, 'Personal'); assert.equal(registry.list()[1]?.name, 'Personal')
     assert.throws(() => registry.remove(id)); registry.select('default'); registry.remove(id)
-    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default', icon: 'personal' }])
+    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Personal', icon: 'personal' }])
     existing.close(); work.close(); registry.close()
   } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 })

@@ -22,7 +22,8 @@
     "build": "tsc --noEmit && electron-vite build",
     "pack:check": "npm pack --dry-run --ignore-scripts",
     "start": "electron-vite preview",
-    "package:win": "npm run build && node scripts/package-win.mjs"
+    "package:win": "npm run build && electron-builder --win dir --x64",
+    "installer:win": "npm run build && electron-builder --win nsis --x64"
   },
   "dependencies": {
     "lucide-react": "^1.65.0",
@@ -38,9 +39,34 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.2.0",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"
+  },
+  "build": {
+    "appId": "org.idlebrowser.idle",
+    "productName": "Idle",
+    "directories": {
+      "output": "release/installer"
+    },
+    "files": [
+      "out/**/*",
+      "resources/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
