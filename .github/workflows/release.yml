@@ -1,0 +1,71 @@
+name: Windows release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  release:
+    name: Build and publish Windows installer
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Enable long paths
+        run: git config --global core.longpaths true
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.9
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Check tag matches package version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -cne "v$version" -or $version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw 'Tag must match the package version, for example v0.1.0.'
+          }
+          if ($env:GITHUB_WORKSPACE.Length -gt 80) {
+            throw 'Checkout path is too long for Windows installer tools.'
+          }
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Build NSIS installer
+        run: pnpm exec electron-builder --win nsis --x64 --publish never
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $installer = "release/installer/Idle Setup $version.exe"
+          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+            throw 'Expected NSIS installer was not produced.'
+          }
+          $notes = 'Idle developer preview for Windows. This unsigned build is provided for testing.'
+          $options = @('release', 'create', $env:RELEASE_TAG, $installer, '--verify-tag', '--title', "Idle $env:RELEASE_TAG", '--notes', $notes)
+          if ($env:RELEASE_TAG -ceq 'v0.1.0' -or $version.Contains('-')) { $options += '--prerelease' }
+          & gh @options
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
