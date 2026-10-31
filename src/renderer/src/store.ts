@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { interfaceScale, interfaceViewport } from '../../shared/interface-scale'
 
 export const MIN_SIDEBAR_WIDTH = 200
 export const MAX_SIDEBAR_WIDTH = 400
@@ -13,6 +14,8 @@ function savedSidebarWidth(): number {
   } catch { return 232 }
 }
 interface UIState {
+  interfaceScale: number
+  setInterfaceScale: (scale: number) => void
   sidebarOpen: boolean
   sidebarWidth: number
   toggleSidebar: () => void
@@ -20,9 +23,11 @@ interface UIState {
   saveSidebarWidth: () => void
 }
 export const useUIStore = create<UIState>((set, get) => ({
+  interfaceScale: (() => { try { return interfaceScale(localStorage.getItem('idle.interfaceScale')) } catch { return 1 } })(),
+  setInterfaceScale: (value) => { const scale = interfaceScale(value); try { localStorage.setItem('idle.interfaceScale', String(scale)) } catch { /* storage may be unavailable */ } set({ interfaceScale: scale }) },
   sidebarOpen: true,
   sidebarWidth: savedSidebarWidth(),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-  setSidebarWidth: (width) => set({ sidebarWidth: clampSidebarWidth(width, window.innerWidth) }),
+  setSidebarWidth: (width) => set({ sidebarWidth: clampSidebarWidth(width, interfaceViewport(window.innerWidth, get().interfaceScale)) }),
   saveSidebarWidth: () => { const width = get().sidebarWidth; try { localStorage.setItem('idle.sidebarWidth', String(width)) } catch { /* storage may be unavailable */ } window.idle.tabCommand({ type: 'sidebar-width', width }) },
 }))

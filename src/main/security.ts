@@ -1,6 +1,6 @@
 import type { TabCommand, ViewBounds } from '../shared/ipc'
 
-const idActions = new Set(['activate', 'close', 'pane-focus', 'favourite-open', 'favourite-remove', 'save-later', 'tab-menu', 'later-open', 'later-remove', 'later-toggle', 'workspace-switch', 'workspace-delete', 'profile-switch', 'profile-delete', 'pin'])
+const idActions = new Set(['activate', 'close', 'pane-focus', 'focus-page', 'favourite-open', 'favourite-remove', 'save-later', 'tab-menu', 'later-open', 'later-remove', 'later-toggle', 'workspace-switch', 'workspace-delete', 'profile-switch', 'profile-delete', 'pin'])
 const simpleActions = new Set(['back', 'forward', 'reload', 'stop', 'sync', 'reopen', 'find-close'])
 const text = (value: unknown, max: number): value is string => typeof value === 'string' && value.length <= max
 const id = (value: unknown): value is string => text(value, 128) && value.length > 0
@@ -22,6 +22,8 @@ export function isTabCommand(value: unknown): value is TabCommand {
     case 'split-drop': return id(cmd.id) && id(cmd.targetId) && id(cmd.workspaceId) && ['left', 'right', 'top', 'bottom'].includes(String(cmd.edge))
     case 'move-to-workspace': return id(cmd.id) && id(cmd.sourceWorkspaceId) && id(cmd.destinationWorkspaceId) && cmd.sourceWorkspaceId !== cmd.destinationWorkspaceId
     case 'reorder-tab': return id(cmd.id) && id(cmd.targetId) && id(cmd.workspaceId) && (cmd.placement === 'before' || cmd.placement === 'after')
+    case 'settings-open': return typeof cmd.open === 'boolean'
+    case 'peek-mode': return cmd.mode === 'automatic' || cmd.mode === 'manual'
     case 'sidebar-width': return typeof cmd.width === 'number' && Number.isInteger(cmd.width) && cmd.width >= 200 && cmd.width <= 400
     case 'find-query': return text(cmd.value, 1000)
     case 'find-step': return typeof cmd.forward === 'boolean'
@@ -31,9 +33,9 @@ export function isTabCommand(value: unknown): value is TabCommand {
     case 'search-later-open': return id(cmd.id) && id(cmd.workspaceId)
     case 'profile-create': return text(cmd.name, 80)
     case 'profile-rename': return id(cmd.id) && text(cmd.name, 80)
-    case 'workspace-create': return text(cmd.name, 80)
+    case 'workspace-create': return text(cmd.name, 80) && (cmd.emoji === undefined || (text(cmd.emoji, 64) && cmd.emoji.trim().length > 0))
     case 'workspace-rename': return id(cmd.id) && text(cmd.name, 80)
-    case 'workspace-emoji': return id(cmd.id) && text(cmd.emoji, 8)
+    case 'workspace-emoji': return id(cmd.id) && text(cmd.emoji, 64) && cmd.emoji.trim().length > 0
     case 'later-note': return id(cmd.id) && text(cmd.note, 2000)
     case 'group-create': return text(cmd.name, 80) && text(cmd.color, 32)
     case 'group-rename': return id(cmd.id) && text(cmd.name, 80)
@@ -48,7 +50,7 @@ export function isTabCommand(value: unknown): value is TabCommand {
 export function isViewBounds(value: unknown): value is ViewBounds {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const bounds = value as Record<string, unknown>
-  return [bounds.x, bounds.y, bounds.width, bounds.height].every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100000)
+  return [bounds.x, bounds.y, bounds.width, bounds.height].every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100000) && (bounds.uiScale === undefined || bounds.uiScale === 1 || bounds.uiScale === 1.25 || bounds.uiScale === 1.5)
 }
 export function isWebURL(value: string): boolean {
   if (value.length > 8192 || /[\u0000-\u001f\u007f]/.test(value)) return false

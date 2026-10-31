@@ -1,7 +1,7 @@
 {
   "name": "idle",
   "productName": "Idle",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "An open-source, macOS-first Chromium browser.",
   "license": "Apache-2.0",
@@ -18,14 +18,15 @@
     "postinstall": "install-electron",
     "dev": "electron-vite dev --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --experimental-sqlite --test tests/session.test.mjs",
+    "test": "node --experimental-strip-types --experimental-sqlite --test tests/*.test.mjs",
     "build": "tsc --noEmit && electron-vite build",
     "pack:check": "npm pack --dry-run --ignore-scripts",
     "start": "electron-vite preview",
-    "package:win": "npm run build && electron-builder --win dir --x64",
-    "installer:win": "npm run build && electron-builder --win nsis --x64"
+    "package:win": "npm run build && electron-builder --win nsis --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
+    "emoji-picker-react": "^5.1.4",
     "lucide-react": "^1.65.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -39,34 +40,42 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.2.0",
-    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"
   },
   "build": {
-    "appId": "org.idlebrowser.idle",
+    "appId": "com.biz4re.idle",
     "productName": "Idle",
     "directories": {
-      "output": "release/installer"
+      "output": "release/builder"
     },
     "files": [
       "out/**/*",
-      "resources/icon.png",
+      "resources/**/*",
       "package.json"
     ],
+    "npmRebuild": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "biz4re",
+        "repo": "Wander"
+      }
+    ],
+    "detectUpdateChannel": true,
     "win": {
-      "icon": "resources/icon.ico",
+      "artifactName": "Idle-Setup-${version}.${ext}",
       "target": [
         "nsis"
       ],
-      "signAndEditExecutable": true
+      "icon": "resources/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "deleteAppDataOnUninstall": false
     }
   }
 }

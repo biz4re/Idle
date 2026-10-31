@@ -27,24 +27,66 @@ export class SessionStore {
       const check = this.db.prepare('PRAGMA quick_check').get()
       if (!check || Object.values(check)[0] !== 'ok') throw new Error('SQLite integrity check failed')
       const version = Number(this.db.prepare('PRAGMA user_version').get()?.user_version)
-      if (version !== 0 && version !== 11) throw new Error('Unsupported pre-release session database')
-      if (version === 0) this.db.exec(`BEGIN IMMEDIATE;
-        CREATE TABLE windows (id TEXT PRIMARY KEY, active_tab TEXT);
-        CREATE TABLE tabs (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL, group_id TEXT, favicon TEXT NOT NULL DEFAULT '', theme_color TEXT NOT NULL DEFAULT '');
-        CREATE TABLE recently_closed (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
-        CREATE TABLE workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, emoji TEXT NOT NULL DEFAULT '🌐');
-        CREATE TABLE workspace_selection (window_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL);
-        INSERT INTO workspaces VALUES ('main', 'Default', 0, '🌐');
-        INSERT INTO workspace_selection VALUES ('main', 'main');
-        CREATE TABLE later (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, saved_at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', done INTEGER NOT NULL DEFAULT 0);
-        CREATE INDEX later_workspace ON later (workspace_id, saved_at DESC);
-        CREATE TABLE favourites (id TEXT PRIMARY KEY, workspace_id TEXT, url TEXT NOT NULL, title TEXT NOT NULL, position INTEGER NOT NULL);
-        CREATE UNIQUE INDEX favourite_url_scope ON favourites (COALESCE(workspace_id, ''), url);
-        CREATE TABLE history (url TEXT NOT NULL, workspace_id TEXT NOT NULL, title TEXT NOT NULL, visited_at INTEGER NOT NULL, PRIMARY KEY(url, workspace_id));
-        CREATE TABLE tab_navigation (tab_id TEXT PRIMARY KEY, entries TEXT NOT NULL, active_index INTEGER NOT NULL);
-        CREATE TABLE split_layouts (workspace_id TEXT PRIMARY KEY, tree TEXT NOT NULL);
-        CREATE TABLE tab_groups (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL, collapsed INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL);
-        PRAGMA user_version = 11; COMMIT;`)
+      if (version > 11) throw new Error('Session database is from a newer version of Idle')
+      if (version === 0) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE windows (id TEXT PRIMARY KEY, active_tab TEXT);
+          CREATE TABLE tabs (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
+          CREATE TABLE recently_closed (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
+          PRAGMA user_version = 1; COMMIT;`)
+      }
+      if (version < 2) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL);
+          CREATE TABLE workspace_selection (window_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL);
+          INSERT INTO workspaces VALUES ('main', 'Default', 0);
+          INSERT INTO workspace_selection VALUES ('main', 'main');
+          PRAGMA user_version = 2; COMMIT;`)
+      }
+      if (version < 3) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE later (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, saved_at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', done INTEGER NOT NULL DEFAULT 0);
+          CREATE INDEX later_workspace ON later (workspace_id, saved_at DESC);
+          PRAGMA user_version = 3; COMMIT;`)
+      }
+      if (version < 4) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE favourites (id TEXT PRIMARY KEY, workspace_id TEXT, url TEXT NOT NULL, title TEXT NOT NULL, position INTEGER NOT NULL);
+          CREATE UNIQUE INDEX favourite_url_scope ON favourites (COALESCE(workspace_id, ''), url);
+          PRAGMA user_version = 4; COMMIT;`)
+      }
+      if (version < 5) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE history (url TEXT NOT NULL, workspace_id TEXT NOT NULL, title TEXT NOT NULL, visited_at INTEGER NOT NULL, PRIMARY KEY(url, workspace_id));
+          PRAGMA user_version = 5; COMMIT;`)
+      }
+      if (version < 6) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE tab_navigation (tab_id TEXT PRIMARY KEY, entries TEXT NOT NULL, active_index INTEGER NOT NULL);
+          PRAGMA user_version = 6; COMMIT;`)
+      }
+      if (version < 7) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          CREATE TABLE split_layouts (workspace_id TEXT PRIMARY KEY, tree TEXT NOT NULL);
+          PRAGMA user_version = 7; COMMIT;`)
+      }
+      if (version < 8) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          ALTER TABLE tabs ADD COLUMN group_id TEXT;
+          CREATE TABLE tab_groups (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL, collapsed INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL);
+          PRAGMA user_version = 8; COMMIT;`)
+      }
+      if (version < 9) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          ALTER TABLE tabs ADD COLUMN favicon TEXT NOT NULL DEFAULT '';
+          PRAGMA user_version = 9; COMMIT;`)
+      }
+      if (version < 10) {
+        this.db.exec(`BEGIN IMMEDIATE;
+          ALTER TABLE tabs ADD COLUMN theme_color TEXT NOT NULL DEFAULT '';
+          PRAGMA user_version = 10; COMMIT;`)
+      }
+      if (version < 11) { this.db.exec(`BEGIN IMMEDIATE; ALTER TABLE workspaces ADD COLUMN emoji TEXT NOT NULL DEFAULT '🌐'; PRAGMA user_version = 11; COMMIT;`) }
       this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;')
     } catch (error) { this.db.close(); throw error }
   }

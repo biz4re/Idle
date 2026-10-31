@@ -1,0 +1,72 @@
+name: Prepare Windows release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release tag (v followed by package version)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Validate draft and channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -cne "v$version") { throw 'Tag must equal v followed by package.json version' }
+          $release = gh release view $env:RELEASE_TAG --json isDraft,isPrerelease | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or -not $release.isDraft) { throw 'An existing draft release is required' }
+          $preview = $version -match '-developer-preview(\.|$)'
+          if ($version.Contains('-') -and -not $preview) { throw 'Only developer-preview prereleases are supported' }
+          if ($release.isPrerelease -ne $preview) { throw 'Release prerelease flag must match the version channel' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - name: Build signed installer and metadata
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        shell: pwsh
+        run: |
+          if (-not $env:CSC_LINK -or -not $env:CSC_KEY_PASSWORD) { throw 'Windows signing certificate secrets are required' }
+          pnpm package:win
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $config = Get-Content release/builder/win-unpacked/resources/app-update.yml -Raw
+          if ($config -notmatch '(?m)^publisherName:\s*(\S|\r?\n\s+-\s+\S)') { throw 'Missing signed publisher identity' }
+      - name: Upload installer and updater metadata to draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $channel = if ($version -match '-developer-preview(\.|$)') { 'developer-preview.yml' } else { 'latest.yml' }
+          $installer = @(Get-ChildItem release/builder -Filter '*.exe')
+          $metadata = "release/builder/$channel"
+          if ($installer.Count -ne 1 -or -not (Test-Path $metadata)) { throw 'Expected one installer and channel metadata' }
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer[0].FullName
+          if ($signature.Status -ne 'Valid') { throw 'Installer must have a valid Authenticode signature' }
+          $publisher = $signature.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          $config = Get-Content release/builder/win-unpacked/resources/app-update.yml -Raw
+          if (-not $publisher -or -not $config.Contains($publisher)) { throw 'Installer signer does not match the update publisher' }
+          $assets = @($installer[0].FullName, $metadata) + @(Get-ChildItem release/builder -Filter '*.blockmap' | ForEach-Object FullName)
+          gh release upload $env:RELEASE_TAG @assets --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
