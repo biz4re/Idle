@@ -1,6 +1,0 @@
-2026/10/30-22:05:57.249 8bc0 Reusing MANIFEST C:\Users\JLHab\OneDrive\Documents\ChatGPT\Wander\.wander-quiet-preview\Partitions\wander-profile-default\Local Storage\leveldb/MANIFEST-000001
-2026/10/30-22:05:57.252 8bc0 Recovering log #3
-2026/10/30-22:05:57.253 8bc0 Reusing old log C:\Users\JLHab\OneDrive\Documents\ChatGPT\Wander\.wander-quiet-preview\Partitions\wander-profile-default\Local Storage\leveldb/000003.log 
-2026/10/30-22:06:57.267 6ff8 Level-0 table #5: started
-2026/10/30-22:06:57.273 6ff8 Level-0 table #5: 553767 bytes OK
-2026/10/30-22:06:57.275 6ff8 Delete type=0 #3
