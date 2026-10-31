@@ -66,6 +66,6 @@ jobs:
           }
           $notes = 'Idle developer preview for Windows. This unsigned build is provided for testing.'
           $options = @('release', 'create', $env:RELEASE_TAG, $installer, '--verify-tag', '--title', "Idle $env:RELEASE_TAG", '--notes', $notes)
-          if ($env:RELEASE_TAG -ceq 'v0.1.0' -or $version.Contains('-')) { $options += '--prerelease' }
+          if ($env:RELEASE_TAG -in @('v0.1.0', 'v0.1.1') -or $version.Contains('-')) { $options += '--prerelease' }
           & gh @options
           if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }

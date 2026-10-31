@@ -1,6 +1,6 @@
 # Idle
 
-A fully open-source, macOS-first Chromium browser foundation, built with Electron, React, strict TypeScript, Vite, Tailwind CSS v4, and Zustand. Version 0.1.0.
+A fully open-source, macOS-first Chromium browser foundation, built with Electron, React, strict TypeScript, Vite, Tailwind CSS v4, and Zustand. Version 0.1.1.
 
 ## Development
 
