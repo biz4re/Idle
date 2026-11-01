@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { CircleHelp, Keyboard, LayoutGrid, Palette, Settings2, Shield, X } from 'lucide-react'
 import { shortcutAccelerator, type BrowserShortcut } from '../../main/shortcuts'
 import { INTERFACE_SCALES } from '../../shared/interface-scale'
-import { useUIStore } from './store'
+import { BROWSER_TINTS, useUIStore } from './store'
 import type { BrowserState, UpdateState } from '../../shared/ipc'
 
 export type SettingsCategory = 'general' | 'appearance' | 'spaces' | 'privacy' | 'shortcuts' | 'about'
@@ -18,7 +18,7 @@ const shortcuts: [string, BrowserShortcut][] = [['Settings', 'settings'], ['New 
 
 export function SettingsPage({ category, setCategory, close, browser, update }: { category: SettingsCategory; setCategory: (category: SettingsCategory) => void; close: () => void; browser: BrowserState; update: UpdateState }) {
   const heading = useRef<HTMLHeadingElement>(null)
-  const { interfaceScale, setInterfaceScale } = useUIStore()
+  const { interfaceScale, setInterfaceScale, browserTint, setBrowserTint } = useUIStore()
   useEffect(() => { heading.current?.focus() }, [])
   const current = sections.find((item) => item.id === category) ?? sections[0]
   const mac = navigator.platform.toLowerCase().includes('mac')
@@ -27,7 +27,7 @@ export function SettingsPage({ category, setCategory, close, browser, update }: 
     <nav className="settings-nav" aria-label="Settings categories"><div className="settings-nav-title">Settings</div>{sections.map(({ id, label, icon: Icon }) => <button key={id} type="button" className="settings-nav-item" aria-current={category === id ? 'page' : undefined} onClick={() => setCategory(id)}><Icon size={16} aria-hidden="true" /><span>{label}</span></button>)}</nav>
     <section className="settings-content" aria-labelledby="settings-heading"><div className="settings-content-inner"><div className="settings-heading-row"><div><h1 ref={heading} tabIndex={-1} id="settings-heading">{current.label}</h1><p>{current.description}</p></div><button type="button" className="icon-button settings-close" aria-label="Close Settings" title="Close Settings" onClick={close}><X size={17} /></button></div>
       {category === 'general' && <p className="settings-empty">There are no general preferences to configure yet.</p>}
-      {category === 'appearance' && <section className="settings-section"><p>Idle follows your system appearance and accessibility preferences.</p><label htmlFor="interface-scale">Interface size</label><select id="interface-scale" value={interfaceScale} onChange={(event) => setInterfaceScale(Number(event.target.value))}>{INTERFACE_SCALES.map((scale) => <option key={scale} value={scale}>{Math.round(scale * 100)}%</option>)}</select><p>Changes browser controls without changing webpage zoom.</p></section>}
+      {category === 'appearance' && <section className="settings-section"><p>Idle follows your system appearance and accessibility preferences.</p><fieldset className="tint-selector"><legend>Browser tint</legend><div className="tint-options">{BROWSER_TINTS.map((tint) => <label key={tint} className="tint-option"><input type="radio" name="browser-tint" value={tint} checked={browserTint === tint} onChange={() => setBrowserTint(tint)} /><span className="tint-swatch" data-tint={tint} aria-hidden="true" /><span>{tint.charAt(0).toUpperCase() + tint.slice(1)}</span></label>)}</div></fieldset><label htmlFor="interface-scale">Interface size</label><select id="interface-scale" value={interfaceScale} onChange={(event) => setInterfaceScale(Number(event.target.value))}>{INTERFACE_SCALES.map((scale) => <option key={scale} value={scale}>{Math.round(scale * 100)}%</option>)}</select><p>Changes browser controls without changing webpage zoom.</p></section>}
       {category === 'privacy' && <p className="settings-empty">Site permissions are requested when a website needs access.</p>}
       {category === 'spaces' && <section className="settings-section"><h2>Peek</h2><p>Open a temporary preview of a link without leaving your tab.</p><fieldset><legend>Open Peek</legend><label><input type="radio" name="peek-mode" checked={browser.peekMode === 'automatic'} onChange={() => window.idle.tabCommand({ type: 'peek-mode', mode: 'automatic' })} /> Automatic</label><label><input type="radio" name="peek-mode" checked={browser.peekMode === 'manual'} onChange={() => window.idle.tabCommand({ type: 'peek-mode', mode: 'manual' })} /> Manual (Alt/Option-click)</label></fieldset></section>}
       {category === 'shortcuts' && <dl className="settings-shortcuts">{shortcuts.map(([label, action]) => { const key = shortcutAccelerator(action, mac); return key ? <div key={action}><dt>{label}</dt><dd><kbd>{key.replaceAll('CommandOrControl', mac ? '⌘' : 'Ctrl').replaceAll('Command', '⌘').replaceAll('Control', 'Ctrl')}</kbd></dd></div> : null })}</dl>}

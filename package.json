@@ -61,7 +61,7 @@
       {
         "provider": "github",
         "owner": "biz4re",
-        "repo": "Wander"
+        "repo": "Idle"
       }
     ],
     "detectUpdateChannel": true,

@@ -18,6 +18,25 @@
   --accent:#a0c2b3; --focus:#a1d7c0; --error-bg:#4b302e; --error:#ffd2c8;
   --menu-shadow:0 14px 36px rgba(0,0,0,.34), 0 2px 8px rgba(0,0,0,.2);
 } }
+/* Browser tint affects Idle surfaces only; text and interaction colors stay unchanged. */
+:root[data-browser-tint="sage"], [data-tint="sage"] { --tint-color:#91ae9a; }
+:root[data-browser-tint="ocean"], [data-tint="ocean"] { --tint-color:#88adbe; }
+:root[data-browser-tint="lavender"], [data-tint="lavender"] { --tint-color:#aa9abd; }
+:root[data-browser-tint="rose"], [data-tint="rose"] { --tint-color:#c49ca3; }
+:root[data-browser-tint="sand"], [data-tint="sand"] { --tint-color:#c3ae8e; }
+[data-tint="default"] { --tint-color:#c5c5bf; }
+:root[data-browser-tint]:not([data-browser-tint="default"]) {
+  --shell:color-mix(in srgb, #f1f0ed 90%, var(--tint-color));
+  --sidebar:color-mix(in srgb, rgba(235,234,230,.86) 90%, var(--tint-color));
+  --toolbar:color-mix(in srgb, rgba(246,245,242,.72) 92%, var(--tint-color));
+  --surface:color-mix(in srgb, #faf9f7 92%, var(--tint-color));
+}
+@media (prefers-color-scheme:dark) { :root[data-browser-tint]:not([data-browser-tint="default"]) {
+  --shell:color-mix(in srgb, #202120 92%, var(--tint-color));
+  --sidebar:color-mix(in srgb, rgba(35,37,35,.9) 92%, var(--tint-color));
+  --toolbar:color-mix(in srgb, rgba(38,40,38,.72) 94%, var(--tint-color));
+  --surface:color-mix(in srgb, #303330 94%, var(--tint-color));
+} }
 * { box-sizing:border-box; } body { margin:0; } button { cursor:pointer; } button:disabled { opacity:.38; cursor:default; }
 .peek-backdrop { position:fixed; inset:0; border-radius:var(--radius-canvas); background:rgba(0,0,0,.38); }
 .peek-backdrop::after { content:''; position:absolute; inset:min(24px, 12.5vw, 12.5vh); top:calc(min(24px, 12.5vw, 12.5vh) + 40px); border-radius:var(--radius-canvas); box-shadow:0 6px 20px rgba(0,0,0,.18); pointer-events:none; }
@@ -395,3 +414,19 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .settings-section > label { margin-top:20px; }
 @media (prefers-reduced-motion:reduce) { .spinner { animation:none !important; border-color:var(--muted); border-top-color:var(--text); } }
 @media (forced-colors:active) { .sidebar-resize:focus-visible, .settings-heading-row h1:focus { outline:2px solid Highlight; } .settings-section select { border-color:ButtonText; } }
+
+/* Retain native-material translucency when a tint is selected. */
+:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
+:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:color-mix(in srgb, var(--shell) 48%, transparent); }
+@media (prefers-color-scheme:dark) { :root[data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
+:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:color-mix(in srgb, var(--shell) 56%, transparent); } }
+@media (prefers-reduced-transparency:reduce), (forced-colors:active) { :root[data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
+:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:var(--shell); } }
+:root[data-browser-tint]:not([data-browser-tint="default"]) .pane-toolbar { background:var(--surface); }
+.settings-section .tint-selector { margin:24px 0 0; }
+.tint-options { display:flex; flex-wrap:wrap; gap:16px; }
+.settings-section .tint-option { position:relative; display:flex; flex-direction:column; gap:7px; color:var(--muted); font-size:11px; cursor:pointer; }
+.tint-option input { position:absolute; width:28px; height:28px; margin:0; opacity:0; }
+.tint-swatch { width:28px; height:28px; border-radius:50%; background:var(--tint-color); border:1px solid var(--border); }
+.tint-option input:checked + .tint-swatch { outline:2px solid var(--text); outline-offset:3px; }
+.tint-option input:focus-visible + .tint-swatch { outline:2px solid var(--focus); outline-offset:3px; }

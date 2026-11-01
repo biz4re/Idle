@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import { interfaceScale, interfaceViewport } from '../../shared/interface-scale'
 
+export const BROWSER_TINTS = ['default', 'sage', 'ocean', 'lavender', 'rose', 'sand'] as const
+export type BrowserTint = typeof BROWSER_TINTS[number]
+function savedBrowserTint(): BrowserTint {
+  try { const value = localStorage.getItem('idle.browserTint'); return BROWSER_TINTS.find((tint) => tint === value) ?? 'default' } catch { return 'default' }
+}
+const initialTint = savedBrowserTint()
+document.documentElement.dataset.browserTint = initialTint
+
 export const MIN_SIDEBAR_WIDTH = 200
 export const MAX_SIDEBAR_WIDTH = 400
 export function clampSidebarWidth(width: number, viewportWidth: number): number {
@@ -14,6 +22,8 @@ function savedSidebarWidth(): number {
   } catch { return 232 }
 }
 interface UIState {
+  browserTint: BrowserTint
+  setBrowserTint: (tint: BrowserTint) => void
   interfaceScale: number
   setInterfaceScale: (scale: number) => void
   sidebarOpen: boolean
@@ -23,6 +33,8 @@ interface UIState {
   saveSidebarWidth: () => void
 }
 export const useUIStore = create<UIState>((set, get) => ({
+  browserTint: initialTint,
+  setBrowserTint: (value) => { const tint = BROWSER_TINTS.find((item) => item === value) ?? 'default'; document.documentElement.dataset.browserTint = tint; try { localStorage.setItem('idle.browserTint', tint) } catch { /* storage may be unavailable */ } set({ browserTint: tint }) },
   interfaceScale: (() => { try { return interfaceScale(localStorage.getItem('idle.interfaceScale')) } catch { return 1 } })(),
   setInterfaceScale: (value) => { const scale = interfaceScale(value); try { localStorage.setItem('idle.interfaceScale', String(scale)) } catch { /* storage may be unavailable */ } set({ interfaceScale: scale }) },
   sidebarOpen: true,
