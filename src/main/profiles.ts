@@ -20,6 +20,7 @@ export class ProfileRegistry {
         this.db.prepare('INSERT INTO profiles (id, name, position, icon) VALUES (?, ?, ?, ?)').run('default', fresh ? 'Personal' : 'Default', 0, 'personal')
         if (fresh) this.db.prepare('INSERT INTO profiles (id, name, position, icon) VALUES (?, ?, ?, ?)').run(randomUUID(), 'Work', 1, 'work')
       }
+      this.db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('onboardingComplete', ?)").run(fresh ? 0 : 1)
       this.db.exec('INSERT OR IGNORE INTO selection SELECT 1, id FROM profiles ORDER BY position LIMIT 1; COMMIT')
     } catch (error) { this.db.exec('ROLLBACK'); throw error }
   }
@@ -35,5 +36,7 @@ export class ProfileRegistry {
   setSidebarWidth(width: number): void { if (!Number.isInteger(width) || width < 200 || width > 400) throw new Error('Invalid sidebar width'); this.db.prepare("INSERT INTO settings VALUES ('sidebarWidth', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(width) }
   peekMode(id: string): 'automatic' | 'manual' { return this.db.prepare('SELECT value FROM settings WHERE key = ?').get(`peekMode:${id}`)?.value === 1 ? 'manual' : 'automatic' }
   setPeekMode(id: string, mode: 'automatic' | 'manual'): void { if (!this.list().some((profile) => profile.id === id)) throw new Error('Unknown Profile'); this.db.prepare('INSERT INTO settings VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(`peekMode:${id}`, mode === 'manual' ? 1 : 0) }
+  onboardingComplete(): boolean { return this.db.prepare("SELECT value FROM settings WHERE key = 'onboardingComplete'").get()?.value === 1 }
+  completeOnboarding(): void { this.db.prepare("UPDATE settings SET value = 1 WHERE key = 'onboardingComplete'").run() }
   close(): void { this.db.close() }
 }

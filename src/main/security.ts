@@ -22,6 +22,7 @@ export function isTabCommand(value: unknown): value is TabCommand {
     case 'split-drop': return id(cmd.id) && id(cmd.targetId) && id(cmd.workspaceId) && ['left', 'right', 'top', 'bottom'].includes(String(cmd.edge))
     case 'move-to-workspace': return id(cmd.id) && id(cmd.sourceWorkspaceId) && id(cmd.destinationWorkspaceId) && cmd.sourceWorkspaceId !== cmd.destinationWorkspaceId
     case 'reorder-tab': return id(cmd.id) && id(cmd.targetId) && id(cmd.workspaceId) && (cmd.placement === 'before' || cmd.placement === 'after')
+    case 'open-welcome': return typeof cmd.reuseEmpty === 'boolean'
     case 'settings-open': return typeof cmd.open === 'boolean'
     case 'peek-mode': return cmd.mode === 'automatic' || cmd.mode === 'manual'
     case 'sidebar-width': return typeof cmd.width === 'number' && Number.isInteger(cmd.width) && cmd.width >= 200 && cmd.width <= 400

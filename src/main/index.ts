@@ -4,6 +4,7 @@ import { join, basename } from 'node:path'
 import { release } from 'node:os'
 import { browserShortcut, shortcutAccelerator, type BrowserShortcut } from './shortcuts'
 import { visibleProfiles } from '../shared/profile-switcher'
+import { WELCOME_URL } from '../shared/welcome'
 import { canRestorePane, nextFocusTarget } from '../shared/focus-navigation'
 import { groupPinnedTabs, reorderTabs } from '../shared/tab-order'
 import { splitPane, splitTabIds, removeSplitTab, type SplitTree } from '../shared/split-tree'
@@ -23,7 +24,7 @@ import { autoUpdater, NsisUpdater } from 'electron-updater'
 import { UpdateService } from './update-service'
 import { verifyUpdateSignature } from './update-signature'
 import { UPDATE_CHANNEL, UPDATE_STATE_CHANNEL, type UpdateState } from '../shared/ipc'
-import { APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, WORKSPACE_SWITCH_CHANNEL, PROFILE_SWITCH_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, PEEK_HOST_CHANNEL, type BrowserState, type DownloadState, type TabState, type ViewBounds, type AppInfo } from '../shared/ipc'
+import { ONBOARDING_CHANNEL, APP_INFO_CHANNEL, SPLIT_PREVIEW_CHANNEL, VIEW_BOUNDS_CHANNEL, TAB_COMMAND_CHANNEL, TAB_STATE_CHANNEL, WORKSPACE_SWITCH_CHANNEL, PROFILE_SWITCH_CHANNEL, SHORTCUT_CHANNEL, BROWSER_ACTION_CHANNEL, FIND_RESULT_CHANNEL, PEEK_HOST_CHANNEL, type BrowserState, type DownloadState, type TabState, type ViewBounds, type AppInfo } from '../shared/ipc'
 
 app.setName('Idle')
 app.enableSandbox()
@@ -52,7 +53,7 @@ const rendererURL = !app.isPackaged && process.env.ELECTRON_RENDERER_URL
   : pathToFileURL(rendererFile).href
 
 function createWindow(): void {
-  settingsOpen = false
+  settingsOpen = !profiles.onboardingComplete()
   const supportsMica = process.platform === 'win32' && Number(release().split('.')[2] ?? 0) >= 22621
   const useMaterial = (): boolean => !nativeTheme.prefersReducedTransparency && !nativeTheme.shouldUseHighContrastColors && (supportsMica || process.platform === 'darwin')
   const solidColor = (): string => nativeTheme.shouldUseDarkColors ? '#202120' : '#f1f0ed'
@@ -253,6 +254,7 @@ function createProfileContext(window: BrowserWindow, profileId: string, store: S
     const contents = view.webContents
     contents.once('destroyed', () => { peekNavigation.clear(id); closePeek(id) })
     let savedNavigationKey = ''
+    let welcomeHttpFailure = false
     const refresh = (): void => {
       const ownerId = ownedTab.workspaceId
       const ownerTabs = ownerId === activeWorkspaceId ? tabs : workspaceCache.get(ownerId)?.tabs
@@ -305,7 +307,7 @@ function createProfileContext(window: BrowserWindow, profileId: string, store: S
     contents.on('will-frame-navigate', (event) => { if (!event.isMainFrame && !isWebURL(event.url) && event.url !== 'about:blank' && event.url !== 'about:srcdoc' && !/^(?:blob:|data:)/i.test(event.url)) event.preventDefault() })
     contents.on('will-redirect', (event, url) => { if (!isWebURL(url)) event.preventDefault() })
     contents.on('found-in-page', (_event, result) => { if (activeId === id && ownedTab.workspaceId === activeWorkspaceId && findOpen && result.requestId === findRequest && !window.isDestroyed()) window.webContents.send(FIND_RESULT_CHANNEL, { matches: result.matches, activeMatchOrdinal: result.activeMatchOrdinal }) })
-    contents.on('did-start-loading', () => { state.loading = true; state.error = ''; refresh() })
+    contents.on('did-start-loading', () => { welcomeHttpFailure = false; state.loading = true; state.error = ''; refresh() })
     const revealLoadedPage = (): void => {
       if (contents.isDestroyed() || state.error || !isWebURL(contents.getURL())) return
       ownedTab.presented = true
@@ -313,7 +315,8 @@ function createProfileContext(window: BrowserWindow, profileId: string, store: S
     }
     contents.on('did-finish-load', () => { const title = contents.getTitle().trim(); if (title) state.title = title; revealLoadedPage() })
     contents.on('did-stop-loading', () => { state.loading = false; if (!ownedTab.presented) revealLoadedPage(); refresh() })
-    contents.on('did-navigate', (_event, url) => { if (window.isDestroyed() || disposed) return; const previousURL = state.url; state.url = url; state.title = ''; state.error = ''; let sameOrigin = false; try { sameOrigin = !!previousURL && new URL(previousURL).origin === new URL(url).origin } catch { /* invalid or new-tab URL */ } if (!sameOrigin) state.favicon = ''; try { store.recordHistory(ownedTab.workspaceId, url, url) } catch (error) { console.error('Unable to record history:', error) } refresh() })
+    contents.on('did-navigate', (_event, url) => { if (window.isDestroyed() || disposed) return; const previousURL = state.url; state.url = url; state.title = ''; state.error = url === WELCOME_URL && welcomeHttpFailure ? 'Page unavailable' : ''; let sameOrigin = false; try { sameOrigin = !!previousURL && new URL(previousURL).origin === new URL(url).origin } catch { /* invalid or new-tab URL */ } if (!sameOrigin) state.favicon = ''; try { store.recordHistory(ownedTab.workspaceId, url, url) } catch (error) { console.error('Unable to record history:', error) } refresh() })
+    contents.on('did-frame-navigate', (_event, url, status, _statusText, main) => { if (main && status >= 400 && url === WELCOME_URL) { welcomeHttpFailure = true; state.url = url; state.error = `HTTP ${status}`; view.setVisible(false); refresh() } })
     contents.on('did-navigate-in-page', (_event, url, main) => { if (main) { state.url = url; refresh() } })
     contents.on('page-title-updated', (_event, title) => { if (window.isDestroyed() || disposed) return; state.title = title; if (state.url) { try { store.recordHistory(ownedTab.workspaceId, state.url, title) } catch (error) { console.error('Unable to record history:', error) } } refresh() })
     contents.on('page-favicon-updated', (_event, icons) => { if (window.isDestroyed() || disposed) return; const icon = icons.find((value) => value.length <= 8192 && /^(?:https?:|data:image\/|chrome:\/\/favicon\/)/i.test(value)); state.favicon = icon && !/^chrome:\/\/favicon\//i.test(icon) ? icon : ''; refresh() })
@@ -566,7 +569,7 @@ function createProfileContext(window: BrowserWindow, profileId: string, store: S
       toolbar.webContents.once('destroyed', () => { if (peeks.get(peekId)?.toolbar === toolbar) closePeek(peekId) })
       backdrop.webContents.once('destroyed', () => { if (peeks.get(peekId)?.backdrop === backdrop) closePeek(peekId) })
       for (const id of peeks.keys()) closePeek(id)
-      peeks.set(peekId, { page: view, toolbar, backdrop }); window.contentView.addChildView(backdrop); window.contentView.addChildView(view); window.contentView.addChildView(toolbar); layout()
+      window.webContents.send(BROWSER_ACTION_CHANNEL, 'peek-hint'); peeks.set(peekId, { page: view, toolbar, backdrop }); window.contentView.addChildView(backdrop); window.contentView.addChildView(view); window.contentView.addChildView(toolbar); layout()
       void backdrop.webContents.loadURL(`${rendererURL}#peek-backdrop`).catch(() => { if (peeks.get(peekId)?.backdrop === backdrop) closePeek(peekId, true) })
       void toolbar.webContents.loadURL(`${rendererURL}#peek-toolbar`).catch(() => { if (peeks.get(peekId)?.toolbar === toolbar) closePeek(peekId, true) })
       view.webContents.focus()
@@ -610,7 +613,12 @@ function createProfileContext(window: BrowserWindow, profileId: string, store: S
     }
     if (!trusted(event) || !isTabCommand(value)) return
     let cmd = value
-    if (settingsOpen && ['create', 'activate', 'navigate', 'reopen', 'favourite-open', 'later-open', 'search-later-open', 'history-open'].includes(cmd.type)) { setSettingsOpen(false); window.webContents.send(BROWSER_ACTION_CHANNEL, 'settings-close') }
+    if (settingsOpen && ['open-welcome', 'create', 'activate', 'navigate', 'reopen', 'favourite-open', 'later-open', 'search-later-open', 'history-open'].includes(cmd.type)) { setSettingsOpen(false); window.webContents.send(BROWSER_ACTION_CHANNEL, 'settings-close') }
+    if (cmd.type === 'open-welcome') {
+      const current = activeId ? tabs.get(activeId) : undefined
+      if (cmd.reuseEmpty && current && !current.state.url && !current.state.pinned && !current.state.groupId) cmd = { type: 'navigate', value: WELCOME_URL }
+      else { if (tabs.size < 100) create({ id: randomUUID(), url: WELCOME_URL, pinned: false }); return }
+    }
     if (cmd.type === 'peek-close') { closePeek(cmd.id, true); return }
     if (cmd.type === 'peek-open') { openPeek(cmd.id, cmd.url); return }
     if (cmd.type === 'pane-switcher') {
@@ -1026,7 +1034,13 @@ void app.whenReady().then(() => {
     if (!owner || owner.webContents !== event.sender || !frame || frame !== event.sender.mainFrame || frame.url !== rendererURL) {
       throw new Error('Untrusted IPC sender')
     }
-    return { name: app.getName(), version: app.getVersion() }
+    return { name: app.getName(), version: app.getVersion(), onboardingComplete: profiles.onboardingComplete() }
+  })
+
+  ipcMain.handle(ONBOARDING_CHANNEL, (event): void => {
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    if (!owner || owner.webContents !== event.sender || event.senderFrame !== event.sender.mainFrame || event.senderFrame?.url !== rendererURL) throw new Error('Untrusted IPC sender')
+    profiles.completeOnboarding()
   })
 
   ipcMain.handle(UPDATE_CHANNEL, async (event, action: unknown): Promise<UpdateState> => {

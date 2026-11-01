@@ -20,10 +20,10 @@ export interface DownloadConfig {
 
 export const DOWNLOAD_CONFIG: DownloadConfig = {
   hasVerifiedInstallers: false,
-  version: '0.1.2',
+  version: '0.1.3-developer-preview.1',
   statusBadge: 'Coming soon',
   statusMessage: 'macOS & Windows installers coming soon',
   ctaText: 'Get Idle',
   targetAnchor: '#download',
-  githubUrl: 'https://github.com/idlebrowser/idle',
+  githubUrl: 'https://github.com/biz4re/Idle',
 };

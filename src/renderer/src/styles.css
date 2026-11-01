@@ -11,32 +11,32 @@
   --radius-sm:8px; --radius-md:11px; --radius-canvas:16px; --space:8px; --motion:140ms;
   --menu-shadow:0 14px 35px rgba(36,39,35,.14), 0 2px 8px rgba(36,39,35,.06);
 }
-@media (prefers-color-scheme:dark) { :root {
+:root[data-effective-theme="dark"] {
   --shell:#202120; --sidebar:rgba(35,37,35,.9); --toolbar:rgba(38,40,38,.72);
   --canvas:#292b29; --field:rgba(255,255,255,.055); --surface:#303330; --hover:rgba(255,255,255,.065);
   --active:rgba(255,255,255,.1); --border:rgba(255,255,255,.1); --text:#eeefeb; --muted:#abb0ab;
   --accent:#a0c2b3; --focus:#a1d7c0; --error-bg:#4b302e; --error:#ffd2c8;
   --menu-shadow:0 14px 36px rgba(0,0,0,.34), 0 2px 8px rgba(0,0,0,.2);
-} }
+}
 /* Browser tint affects Idle surfaces only; text and interaction colors stay unchanged. */
 :root[data-browser-tint="sage"], [data-tint="sage"] { --tint-color:#91ae9a; }
 :root[data-browser-tint="ocean"], [data-tint="ocean"] { --tint-color:#88adbe; }
-:root[data-browser-tint="lavender"], [data-tint="lavender"] { --tint-color:#aa9abd; }
+:root[data-browser-tint="lavender"], [data-tint="lavender"] { --tint-color:#a18ac3; }
 :root[data-browser-tint="rose"], [data-tint="rose"] { --tint-color:#c49ca3; }
 :root[data-browser-tint="sand"], [data-tint="sand"] { --tint-color:#c3ae8e; }
 [data-tint="default"] { --tint-color:#c5c5bf; }
 :root[data-browser-tint]:not([data-browser-tint="default"]) {
-  --shell:color-mix(in srgb, #f1f0ed 90%, var(--tint-color));
-  --sidebar:color-mix(in srgb, rgba(235,234,230,.86) 90%, var(--tint-color));
-  --toolbar:color-mix(in srgb, rgba(246,245,242,.72) 92%, var(--tint-color));
-  --surface:color-mix(in srgb, #faf9f7 92%, var(--tint-color));
+  --shell:color-mix(in srgb, #f1f0ed 78%, var(--tint-color));
+  --sidebar:color-mix(in srgb, rgba(235,234,230,.86) 78%, var(--tint-color));
+  --toolbar:color-mix(in srgb, rgba(246,245,242,.72) 82%, var(--tint-color));
+  --surface:color-mix(in srgb, #faf9f7 84%, var(--tint-color));
 }
-@media (prefers-color-scheme:dark) { :root[data-browser-tint]:not([data-browser-tint="default"]) {
-  --shell:color-mix(in srgb, #202120 92%, var(--tint-color));
-  --sidebar:color-mix(in srgb, rgba(35,37,35,.9) 92%, var(--tint-color));
-  --toolbar:color-mix(in srgb, rgba(38,40,38,.72) 94%, var(--tint-color));
-  --surface:color-mix(in srgb, #303330 94%, var(--tint-color));
-} }
+:root[data-effective-theme="dark"][data-browser-tint]:not([data-browser-tint="default"]) {
+  --shell:color-mix(in srgb, #202120 83%, var(--tint-color));
+  --sidebar:color-mix(in srgb, rgba(35,37,35,.9) 83%, var(--tint-color));
+  --toolbar:color-mix(in srgb, rgba(38,40,38,.72) 86%, var(--tint-color));
+  --surface:color-mix(in srgb, #303330 87%, var(--tint-color));
+}
 * { box-sizing:border-box; } body { margin:0; } button { cursor:pointer; } button:disabled { opacity:.38; cursor:default; }
 .peek-backdrop { position:fixed; inset:0; border-radius:var(--radius-canvas); background:rgba(0,0,0,.38); }
 .peek-backdrop::after { content:''; position:absolute; inset:min(24px, 12.5vw, 12.5vh); top:calc(min(24px, 12.5vw, 12.5vh) + 40px); border-radius:var(--radius-canvas); box-shadow:0 6px 20px rgba(0,0,0,.18); pointer-events:none; }
@@ -171,9 +171,7 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .windows.app-shell, .mac.app-shell { background:transparent; }
 .windows .sidebar, .mac .sidebar { background:rgba(241,240,237,.48); }
 .windows .toolbar, .mac .toolbar { background:rgba(241,240,237,.48); }
-@media (prefers-color-scheme:dark) {
-  .windows .sidebar, .mac .sidebar, .windows .toolbar, .mac .toolbar { background:rgba(32,33,32,.56); }
-}
+:root[data-effective-theme="dark"] .windows .sidebar, :root[data-effective-theme="dark"] .mac .sidebar, :root[data-effective-theme="dark"] .windows .toolbar, :root[data-effective-theme="dark"] .mac .toolbar { background:rgba(32,33,32,.56); }
 @media (prefers-reduced-transparency:reduce), (forced-colors:active) {
   .windows.app-shell, .mac.app-shell { background:var(--shell); }
   .windows .sidebar, .mac .sidebar, .windows .toolbar, .mac .toolbar { background:var(--shell); }
@@ -417,9 +415,9 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 
 /* Retain native-material translucency when a tint is selected. */
 :root[data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
-:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:color-mix(in srgb, var(--shell) 48%, transparent); }
-@media (prefers-color-scheme:dark) { :root[data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
-:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:color-mix(in srgb, var(--shell) 56%, transparent); } }
+:root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:color-mix(in srgb, var(--shell) 70%, transparent); }
+:root[data-effective-theme="dark"][data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-effective-theme="dark"][data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
+:root[data-effective-theme="dark"][data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-effective-theme="dark"][data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:color-mix(in srgb, var(--shell) 70%, transparent); }
 @media (prefers-reduced-transparency:reduce), (forced-colors:active) { :root[data-browser-tint]:not([data-browser-tint="default"]) .windows .sidebar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .sidebar,
 :root[data-browser-tint]:not([data-browser-tint="default"]) .windows .toolbar, :root[data-browser-tint]:not([data-browser-tint="default"]) .mac .toolbar { background:var(--shell); } }
 :root[data-browser-tint]:not([data-browser-tint="default"]) .pane-toolbar { background:var(--surface); }
@@ -430,3 +428,21 @@ svg { width:16px; height:16px; flex:none; } .app-shell { display:flex; height:10
 .tint-swatch { width:28px; height:28px; border-radius:50%; background:var(--tint-color); border:1px solid var(--border); }
 .tint-option input:checked + .tint-swatch { outline:2px solid var(--text); outline-offset:3px; }
 .tint-option input:focus-visible + .tint-swatch { outline:2px solid var(--focus); outline-offset:3px; }
+
+.appearance-modes div { display:flex; flex-wrap:wrap; gap:18px; }
+.settings-section .appearance-modes { margin-top:0; }
+.appearance-modes label { cursor:pointer; }
+.onboarding { display:grid; place-items:center; width:100%; min-height:100vh; padding:40px 24px; overflow:auto; background:var(--shell); color:var(--text); }
+.onboarding-inner { width:min(100%, 470px); }
+.onboarding h1 { margin:20px 0 0; font-size:28px; font-weight:600; letter-spacing:-.035em; }
+.onboarding p { margin:10px 0 0; color:var(--muted); font-size:14px; line-height:1.6; }
+.onboarding-ghost { width:54px; height:54px; object-fit:contain; animation:ghost-float 3s ease-in-out infinite; }
+:root[data-effective-theme="light"] .onboarding-ghost { filter:invert(1); }
+@keyframes ghost-float { 50% { transform:translateY(-4px); } }
+.onboarding button { border:0; border-radius:var(--radius-sm); padding:10px 16px; background:var(--hover); color:var(--text); font:inherit; font-size:13px; }
+.onboarding .onboarding-primary { margin-top:28px; background:var(--text); color:var(--shell); font-weight:600; }
+.onboarding .settings-section { padding:24px 0 0; }
+.onboarding-actions { display:flex; gap:10px; align-items:baseline; }
+.discovery-hint { display:flex; flex:none; align-items:flex-start; gap:8px; margin:5px 2px; padding:8px; border-radius:var(--radius-sm); background:var(--surface); color:var(--muted); font-size:11px; line-height:1.4; }
+.discovery-hint span { flex:1; } .discovery-hint button { border:0; background:transparent; color:var(--muted); font-size:15px; }
+@media (prefers-reduced-motion:reduce) { .onboarding-ghost { animation:none; } }

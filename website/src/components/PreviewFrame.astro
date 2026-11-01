@@ -1,0 +1,6 @@
+---
+interface Props { mode: string; label: string; eager?: boolean }
+const { mode, label, eager = false } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<div class="preview-frame"><iframe src={`${base}demo/?mode=${encodeURIComponent(mode)}`} title={label} loading={eager ? 'eager' : 'lazy'}></iframe></div>

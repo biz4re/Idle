@@ -1,0 +1,22 @@
+html, body, #preview-root { width:100%; height:100%; margin:0; overflow:hidden; }
+.demo-app { position:relative; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+.demo-app button { border:0; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+.demo-app .sidebar { flex-basis:200px; }
+.demo-app .toolbar { -webkit-app-region:no-drag; }
+.demo-app .settings-content-inner { padding:24px; }
+.demo-app .settings-section { padding:16px 0; }
+.demo-app .tint-options { gap:10px; }
+.demo-app .appearance-modes div { gap:10px; }
+.demo-pages { display:flex; gap:8px; width:100%; height:100%; }
+.demo-page { min-width:0; flex:1; overflow:hidden; background:var(--canvas); }
+.demo-page-content { height:100%; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:24px clamp(18px,5vw,52px); color:var(--text); }
+.demo-page-content small, .demo-peek small { color:var(--muted); font-size:9px; letter-spacing:.1em; }
+.demo-page-content h2, .demo-peek h2 { margin:15px 0 8px; font:normal clamp(20px,3.4vw,34px)/1.08 Georgia,serif; letter-spacing:-.035em; }
+.demo-page-content p, .demo-peek p { max-width:300px; color:var(--muted); font-size:11px; line-height:1.55; }
+.demo-page-content button, .demo-peek > button:last-child { margin-top:12px; padding:8px 10px; border-radius:8px; background:var(--hover); font-size:11px; }
+.demo-peek-overlay { position:absolute; inset:0; z-index:3; display:grid; place-items:center; padding:20px; background:#0006; border-radius:15px; }
+.demo-peek { position:relative; width:min(100%,340px); padding:30px; border-radius:15px; background:var(--surface); box-shadow:var(--menu-shadow); }
+.demo-peek > .icon-button { position:absolute; right:6px; top:6px; }
+.demo-library { padding:8px; border-radius:var(--radius-md); background:var(--surface); font-size:11px; }.demo-library > .icon-button { float:right; width:22px; height:22px; }.demo-library p { margin:10px 0 4px; font-weight:600; }.demo-library span { color:var(--muted); }
+.demo-label { position:absolute; bottom:4px; right:14px; color:var(--muted); font-size:9px; pointer-events:none; }
+@media(max-width:480px) { .demo-app .sidebar { flex-basis:155px; padding:0 6px 6px; }.demo-app .profile-segment { font-size:10px; }.demo-page-content { padding:14px; }.demo-app .pane-toolbar .icon-button { width:26px; }.demo-app .pane-breadcrumbs { font-size:11px; } }
