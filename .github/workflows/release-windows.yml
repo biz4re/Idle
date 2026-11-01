@@ -59,6 +59,11 @@ jobs:
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $channel = if ($version -match '-developer-preview(\.|$)') { 'developer-preview.yml' } else { 'latest.yml' }
+          # Electron Builder's local --publish never build emits latest.yml, even for preview versions.
+          # The GitHub updater requests the configured channel name; the metadata contents stay unchanged.
+          if ($channel -eq 'developer-preview.yml' -and -not (Test-Path 'release/builder/developer-preview.yml') -and (Test-Path 'release/builder/latest.yml')) {
+            Move-Item -LiteralPath 'release/builder/latest.yml' -Destination 'release/builder/developer-preview.yml'
+          }
           $installer = @(Get-ChildItem release/builder -Filter '*.exe')
           $metadata = "release/builder/$channel"
           if ($installer.Count -ne 1 -or -not (Test-Path $metadata)) { throw 'Expected one installer and channel metadata' }
