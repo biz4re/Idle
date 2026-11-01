@@ -15,6 +15,40 @@ import { sessionSaveKey } from '../src/main/session-dedup.ts'
 import { peekBounds } from '../src/shared/peek-layout.ts'
 import { PeekNavigationGuard } from '../src/main/peek-navigation.ts'
 import { popupRoute } from '../src/main/popup-policy.ts'
+import { workspacePopoverBounds } from '../src/shared/workspace-popover.ts'
+import { visibleProfiles } from '../src/shared/profile-switcher.ts'
+
+test('Settings IPC accepts only valid visibility and Peek preferences', () => {
+  assert.equal(isTabCommand({ type: 'settings-open', open: true }), true)
+  assert.equal(isTabCommand({ type: 'settings-open', open: 'true' }), false)
+  assert.equal(isTabCommand({ type: 'peek-mode', mode: 'manual' }), true)
+  assert.equal(isTabCommand({ type: 'peek-mode', mode: 'invalid' }), false)
+})
+
+test('Profile switcher keeps Personal and Work visible and includes an active additional Profile', () => {
+  const profiles = [{ id: 'personal', name: 'Personal', icon: 'personal' }, { id: 'work', name: 'Work', icon: 'work' }, { id: 'other', name: 'Study', icon: 'personal' }]
+  assert.deepEqual(visibleProfiles(profiles, 'personal').map((profile) => profile.id), ['personal', 'work'])
+  assert.deepEqual(visibleProfiles(profiles, 'other').map((profile) => profile.id), ['work', 'other'])
+  assert.deepEqual(visibleProfiles(profiles.slice(0, 1), 'personal').map((profile) => profile.id), ['personal'])
+})
+
+test('a newly created Work Profile gets its own work icon', () => {
+  const profiles = new ProfileRegistry(':memory:')
+  try {
+    const id = '01234567-89ab-4cde-8fab-0123456789ab'
+    profiles.create(id, 'Work')
+    assert.equal(profiles.list().find((profile) => profile.id === id)?.icon, 'work')
+  } finally { profiles.close() }
+})
+
+test('Workspace popovers stay within a narrow sidebar and viewport', () => {
+  const sidebar = { left: 0, right: 200, top: 0, bottom: 520, width: 200 }
+  for (const mode of ['menu', 'rename', 'emoji']) {
+    const bounds = workspacePopoverBounds({ left: 160, right: 198, top: 450, bottom: 488, width: 38 }, sidebar, { width: 760, height: 520 }, mode)
+    assert.ok(bounds.left >= 0 && bounds.left + bounds.width <= sidebar.right)
+    assert.ok(bounds.top >= 0 && bounds.top + bounds.height <= 520)
+  }
+})
 
 test('Workspace order persists and rejects invalid moves', () => {
   const dir = mkdtempSync(join(tmpdir(), 'idle-workspace-order-'))
@@ -28,6 +62,20 @@ test('Workspace order persists and rejects invalid moves', () => {
     assert.deepEqual(store.workspaceSummaries().map(({ id }) => id), ['main', 'third', 'second'])
     assert.equal(store.workspaceSummaries().find(({ id }) => id === 'third')?.emoji, '🌱')
     store.close()
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('Workspace emoji commands accept joined emoji and persist them across restart', () => {
+  const emoji = '👨‍👩‍👧‍👦'
+  assert.ok(emoji.length > 8)
+  assert.equal(isTabCommand({ type: 'workspace-create', name: 'Family', emoji }), true)
+  assert.equal(isTabCommand({ type: 'workspace-emoji', id: 'family', emoji }), true)
+  assert.equal(isTabCommand({ type: 'workspace-create', name: 'Family', emoji: 'x'.repeat(65) }), false)
+  const dir = mkdtempSync(join(tmpdir(), 'idle-workspace-emoji-'))
+  try {
+    const path = join(dir, 'session.sqlite'); let store = new SessionStore(path)
+    store.createWorkspace('family', 'Family'); store.setWorkspaceEmoji('family', emoji); store.close()
+    store = new SessionStore(path); assert.equal(store.workspaceSummaries().find((item) => item.id === 'family')?.emoji, emoji); store.close()
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
@@ -135,21 +183,19 @@ test('session dedup ignores transient UI metadata but detects persisted changes'
   assert.notEqual(sessionSaveKey([original], null, [], null), key)
 })
 
-test('rejects an unsupported pre-release database without migration', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'idle-old-schema-'))
-  try {
-    const path = join(dir, 'session.sqlite'); const db = new DatabaseSync(path)
-    db.exec('PRAGMA user_version = 1'); db.close()
-    assert.throws(() => new SessionStore(path), /Unsupported pre-release session database/)
-  } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
-})
-
-test('creates a fresh session and restores separate workspaces after reopening', () => {
+test('migrates the old session and restores separate workspaces after reopening', () => {
   const dir = mkdtempSync(join(tmpdir(), 'idle-session-'))
   try {
     const path = join(dir, 'session.sqlite')
+    const old = new DatabaseSync(path)
+    old.exec(`CREATE TABLE windows (id TEXT PRIMARY KEY, active_tab TEXT);
+      CREATE TABLE tabs (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
+      CREATE TABLE recently_closed (id TEXT PRIMARY KEY, window_id TEXT NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL);
+      INSERT INTO windows VALUES ('main', 'a');
+      INSERT INTO tabs VALUES ('a', 'main', 0, 'https://example.com', 1);
+      PRAGMA user_version = 1;`)
+    old.close()
     let store = new SessionStore(path)
-    store.save('main', [tab('a', 'https://example.com', true)], 'a', [])
     assert.equal(store.activeWorkspace('main'), 'main')
     assert.deepEqual(store.workspaces(), [{ id: 'main', name: 'Default' }])
     assert.deepEqual(store.load('main')?.tabs, [{ id: 'a', url: 'https://example.com', pinned: true }])
@@ -337,6 +383,18 @@ test('fresh profile defaults are created once and retain their icons', () => {
   } finally { registry?.close(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 })
 
+test('existing profile registry migrates without changing profiles or selection', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'idle-existing-profiles-'))
+  let registry
+  try {
+    const path = join(dir, 'profiles.sqlite'); const db = new DatabaseSync(path)
+    db.exec("CREATE TABLE profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL); CREATE TABLE selection (id INTEGER PRIMARY KEY, profile_id TEXT NOT NULL); INSERT INTO profiles VALUES ('default', 'Original', 0), ('11111111-1111-4111-8111-111111111111', 'Work', 1); INSERT INTO selection VALUES (1, '11111111-1111-4111-8111-111111111111')")
+    db.close(); registry = new ProfileRegistry(path)
+    assert.deepEqual(registry.list().map(({ name, icon }) => [name, icon]), [['Original', 'personal'], ['Work', 'work']])
+    assert.equal(registry.active(), '11111111-1111-4111-8111-111111111111')
+  } finally { registry?.close(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
+})
+
 test('profiles retain independent sessions and active selection across restart', () => {
   const dir = mkdtempSync(join(tmpdir(), 'idle-profiles-'))
   try {
@@ -349,8 +407,8 @@ test('profiles retain independent sessions and active selection across restart',
     assert.equal(registry.active(), 'default')
     assert.equal(registry.sidebarWidth(), 232); registry.setSidebarWidth(318)
     assert.throws(() => registry.setSidebarWidth(10000))
-    assert.deepEqual(registry.list().map(({ name }) => name), ['Personal', 'Work'])
-    const id = registry.list()[1].id; registry.select(id)
+    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default', icon: 'personal' }])
+    const id = '11111111-1111-4111-8111-111111111111'; registry.create(id, 'Work'); registry.select(id)
     let work = new SessionStore(workPath)
     work.save('main', [tab('work', 'https://example.org')], 'work', [])
     assert.deepEqual(work.favourites(), []); work.close(); registry.close()
@@ -364,7 +422,7 @@ test('profiles retain independent sessions and active selection across restart',
     assert.deepEqual(work.favourites(), [])
     registry.rename(id, 'Personal'); assert.equal(registry.list()[1]?.name, 'Personal')
     assert.throws(() => registry.remove(id)); registry.select('default'); registry.remove(id)
-    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Personal', icon: 'personal' }])
+    assert.deepEqual(registry.list(), [{ id: 'default', name: 'Default', icon: 'personal' }])
     existing.close(); work.close(); registry.close()
   } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 })
@@ -378,13 +436,13 @@ test('browser shortcuts recognize macOS and Windows modifiers without swallowing
   assert.equal(mac('9'), 'tab-9')
   assert.equal(mac('{', { shift: true, code: 'BracketLeft' }), 'previous-tab')
   assert.equal(mac('}', { shift: true, code: 'BracketRight' }), 'next-tab')
-  assert.equal(mac('s', { shift: true }), 'sidebar')
-  assert.equal(mac('f', { shift: true }), 'saved-search')
+  assert.equal(mac('s', { shift: true }), null)
+  assert.equal(mac('f', { shift: true }), null)
   assert.equal(browserShortcut({ ...base, key: 'Tab', control: true }, true), 'next-tab')
   assert.equal(browserShortcut({ ...base, key: 'Tab', control: true, shift: true }, true), 'previous-tab')
   assert.equal(browserShortcut({ ...base, key: 'f' }, true), null)
   assert.equal(browserShortcut({ ...base, key: 'l', control: true }, false), 'address')
-  assert.equal(browserShortcut({ ...base, key: 'l', meta: true, alt: true }, true), null)
+  assert.equal(browserShortcut({ ...base, key: 'l', meta: true, alt: true }, true), 'downloads')
   assert.equal(browserShortcut({ ...base, key: 'l', meta: true, isAutoRepeat: true }, true), null)
   assert.equal(isTabCommand({ type: 'find-query', value: 'example' }), true)
   assert.equal(isTabCommand({ type: 'find-query', value: 'x'.repeat(1001) }), false)

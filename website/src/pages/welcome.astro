@@ -1,0 +1,29 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Features from '../components/Features.astro';
+const iconUrl = import.meta.env.BASE_URL.replace(/\/?$/, '/') + 'idle-icon.png';
+---
+<Layout title="Welcome to Idle" description="Get comfortable with your new browser.">
+  <header class="site-header welcome-header"><a class="header-wordmark" href="#top">idle</a><a class="header-logo" href="#top" aria-label="Welcome to Idle"><img src={iconUrl} alt="" /></a><a class="nav-cta" href="#start">Start browsing</a></header>
+  <main id="content">
+    <section id="top" class="welcome-intro section-wrap"><img src={iconUrl} alt="" /><span class="eyebrow">WELCOME TO IDLE</span><h1>Make yourself<br/><em>at home.</em></h1><p>Everything is ready. Explore at your own pace, or enter an address above to start browsing.</p><a class="button button-light" href="#features">A little look around <span>↓</span></a></section>
+    <div id="features"><Features welcome /></div>
+    <section id="start" class="closing"><span class="eyebrow">READY WHEN YOU ARE</span><h2>Start<br/><em>browsing.</em></h2><p>Choose the address above and enter a website or search. You can close this tab whenever you like.</p><p class="welcome-shortcuts">Address: <kbd><span class="shortcut-primary">Ctrl</span> + L</kbd> &nbsp; · &nbsp; New tab: <kbd><span class="shortcut-primary">Ctrl</span> + T</kbd> &nbsp; · &nbsp; Settings: <kbd><span class="shortcut-primary">Ctrl</span> + ,</kbd></p><div class="closing-ghost"><img src={iconUrl} alt="" /></div></section>
+  </main>
+  <script>if (/Mac|iPhone|iPad/.test(navigator.platform)) document.querySelectorAll('.shortcut-primary').forEach((node) => { node.textContent = '⌘'; });</script>
+</Layout>
+<style>
+  .welcome-header { position:absolute; }
+  .welcome-intro { min-height:600px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; background:#18241d; }
+  .welcome-intro img { width:76px; height:76px; object-fit:contain; margin-bottom:28px; }
+  .welcome-intro h1 { font-size:clamp(56px, 8vw, 104px); line-height:.98; letter-spacing:-.065em; font-weight:500; margin:24px 0; }
+  .welcome-intro h1 em { font-family:Georgia,serif; font-weight:400; }
+  .welcome-intro p { max-width:480px; color:#b5c5b6; line-height:1.6; margin:0 0 28px; }
+  .welcome-peek-visual { width:min(75%, 400px); padding:28px; border-radius:14px; background:#f9faf5; color:#293f31; box-shadow:0 20px 50px #050c0820; }
+  .welcome-peek-visual span, .welcome-peek-visual small { font-size:11px; color:#64766a; }
+  .welcome-peek-visual p { font:32px Georgia,serif; margin:38px 0; }
+  .welcome-shortcuts { margin-top:30px !important; font-size:13px !important; max-width:none !important; }
+  kbd { white-space:nowrap; }
+  @media (prefers-reduced-motion:reduce) { :global(html) { scroll-behavior:auto; } }
+  @media (max-width:600px) { .welcome-intro { min-height:520px; padding-top:130px; } .welcome-header .nav-cta { font-size:11px; } }
+</style>

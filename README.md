@@ -1,6 +1,6 @@
 # Idle
 
-A fully open-source, macOS-first Chromium browser foundation, built with Electron, React, strict TypeScript, Vite, Tailwind CSS v4, and Zustand. Version 0.1.1.
+A fully open-source, macOS-first Chromium browser foundation, built with Electron, React, strict TypeScript, Vite, Tailwind CSS v4, and Zustand. Version 0.1.2.
 
 ## Development
 
@@ -22,9 +22,11 @@ pnpm start
 
 `build` typechecks and compiles all three processes into `out/`. `start` opens that production build. These scripts do not create a signed macOS bundle or installer. Development also runs on Windows and Linux; macOS has an inset native title bar and the usual dock activation/window lifecycle.
 
-On Windows, `pnpm package:win` creates an unsigned, unpacked application and `pnpm installer:win` creates an unsigned NSIS installer under `release/installer/`. Both use the Idle icon. Windows code signing is required for a trusted public installer. If NSIS fails on a long dependency path, build from a short checkout path.
+On Windows, `pnpm package:win` creates an NSIS installer and update metadata under `release/builder/`. Local builds without an Authenticode certificate can be used for packaging checks, but automatic updates are disabled in those builds. Signed installed Windows builds check GitHub Releases after startup and every six hours; updates download in the background and install only after the user chooses Restart to update. Development and macOS builds do not update automatically.
 
-Application icon assets are in `resources/`: PNG for the Electron window, ICO for Windows packaging, and ICNS for macOS packaging. A future installer or app-bundle configuration must explicitly use the platform icon file; the development build does not create a desktop shortcut or macOS app bundle.
+To prepare a Windows release, set the package version, tag it `v<version>`, and create a matching draft GitHub Release. Run the **Prepare Windows release assets** workflow with that tag. The repository needs `WINDOWS_CSC_LINK` and `WINDOWS_CSC_KEY_PASSWORD` secrets for an Authenticode signing certificate. The workflow checks the tag, draft, channel, installer signature, and publisher before uploading the installer and metadata to the draft; publishing the draft remains a separate manual step. Stable releases use `latest.yml`. Preview releases must use a version such as `1.2.0-developer-preview.1` and be marked as prereleases; their clients use `developer-preview.yml` and do not downgrade or switch to stable automatically. A release must keep the same signing publisher as installed versions.
+
+Application icon assets are in `resources/`: PNG for the Electron window, ICO for Windows packaging, and ICNS for future macOS packaging. The development build does not create a desktop shortcut or macOS app bundle.
 
 ## Layout
 
